@@ -80,6 +80,12 @@ TEST(manifest_checks_each_section) {
     CHECK(rejects(Toml{.objective = "type = \"win\""}.text(), "[objective] type must be kill_all|escape"));
     CHECK(rejects(Toml{.objective = "type = \"survive\""}.text(), "[objective]: missing ticks"));
     CHECK(rejects(Toml{.objective = "type = \"race\"\nlaps = 0"}.text(), "[objective] laps must be at least 1"));
+    CHECK(rejects(Toml{.objective = "type = \"race\"\nlaps = 3"}.text(), "[objective]: missing line"));
+    CHECK(rejects(Toml{.objective = "type = \"race\"\nlaps = 3\nline = [[1, 2]]"}.text(),
+                  "[objective] line needs at least 2 points"));
+    CHECK(rejects(Toml{.objective = "type = \"race\"\nlaps = 3\nline = [[1, 2], [3]]"}.text(),
+                  "[objective] line must be a list of [x, y] points"));
+    CHECK(error_of(Toml{.objective = "type = \"race\"\nlaps = 3\nline = [[1, 2], [3.5, 4]]"}.text()) == "(valid)");
     CHECK(rejects(Toml{.objective = "type = \"kill_all\"\nticks = 5"}.text(), "[objective]: unknown key ticks"));
     CHECK(rejects(Toml{.objective = "type = \"escape\"\nexit = { x = 1, y = 2, w = 0, h = 3 }"}.text(),
                   "w and h must be positive"));

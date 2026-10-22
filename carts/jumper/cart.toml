@@ -1,0 +1,132 @@
+[cart]
+id = "jumper"
+title = "JUMPER"
+family = "platform"
+
+[env]
+gravity = "down"
+surface = "ground"
+scroll = "follow"
+avatar = "lr"
+spawn = "world"
+deploy = true
+bounds = { left = "solid", right = "solid", top = "solid", bottom = "kill" }
+
+# Touch the flagpole at column 192.
+[objective]
+type = "escape"
+exit = { x = 1538, y = 64, w = 4, h = 88 }
+
+[avatar]
+archetype = "runner"
+damage = "hp"
+hp = 1
+x = 24
+y = 145
+params = { sprite = 1, sfx_jump = 0, sfx_stomp = 1, sfx_bump = 2 }
+
+# Where the 12 walkers and 6 turtles stand, left to right (main.luau's ENEMIES).
+# walker
+[[spawn_points]]
+x = 212
+y = 144
+
+# turtle
+[[spawn_points]]
+x = 308
+y = 144
+
+# walker
+[[spawn_points]]
+x = 324
+y = 144
+
+# walker
+[[spawn_points]]
+x = 348
+y = 144
+
+# walker
+[[spawn_points]]
+x = 388
+y = 144
+
+# walker
+[[spawn_points]]
+x = 508
+y = 144
+
+# turtle
+[[spawn_points]]
+x = 564
+y = 144
+
+# walker
+[[spawn_points]]
+x = 612
+y = 144
+
+# walker
+[[spawn_points]]
+x = 660
+y = 144
+
+# turtle
+[[spawn_points]]
+x = 740
+y = 144
+
+# walker
+[[spawn_points]]
+x = 764
+y = 144
+
+# walker
+[[spawn_points]]
+x = 924
+y = 144
+
+# turtle
+[[spawn_points]]
+x = 1028
+y = 144
+
+# walker
+[[spawn_points]]
+x = 1124
+y = 144
+
+# turtle
+[[spawn_points]]
+x = 1220
+y = 144
+
+# walker
+[[spawn_points]]
+x = 1268
+y = 144
+
+# turtle
+[[spawn_points]]
+x = 1324
+y = 144
+
+# walker
+[[spawn_points]]
+x = 1388
+y = 144
+
+[[exports]]
+id = "walker"
+archetype = "walker"
+params = { sprite = 9, sfx_die = 10 }
+
+[[exports]]
+id = "shell"
+archetype = "shell"
+params = { sprite = 17, sfx_bump = 9 }
+
+[[exports]]
+id = "fire_flower"
+archetype = "fire_flower"
+params = { hp = 2, sprite = 21, fireball_sprite = 23, sfx_fire = 3, sfx_take = 4 }

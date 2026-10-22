@@ -73,8 +73,15 @@ end, {
 }
 
 TEST(objective_survive_escape_collect) {
+    // The clock starts with the cart's first spawn (tick 10, after 9 steps), not at the title screen.
     CHECK(wins(run_world("survive", Toml{.objective = "type = \"survive\"\nticks = 30"}.text(),
-                         std::string(kMetLog) + "run(logging, { [40] = function() eq(table.concat(met), 'survive@30', 'survived') end })")));
+                         std::string(kMetLog) + R"lua(
+run(logging, {
+    [10] = function() world:spawn("dummy", nil, 20, 20, "wild") end,
+    [38] = function() eq(#met, 0, "not yet") end,
+    [60] = function() eq(table.concat(met), "survive@39", "survived 30 steps from the first spawn") end,
+})
+)lua")));
 
     const std::string escape = Toml{.avatar = "lr",
                                     .objective = "type = \"escape\"\nexit = { x = 200, y = 0, w = 8, h = 180 }",
@@ -100,7 +107,7 @@ end, {
 
 TEST(objective_race_counts_the_avatar_and_host_racers) {
     const std::string toml = Toml{.avatar = "heading",
-                                  .objective = "type = \"race\"\nlaps = 3",
+                                  .objective = "type = \"race\"\nlaps = 3\nline = [[300, 170], [310, 170]]",
                                   .extra = "[avatar]\narchetype = \"dummy\"\ndamage = \"hp\"\nhp = 1\nx = 20\ny = 20\n"
                                            "params = { racer = true, lap_every = 10 }\n"}
                                  .text();

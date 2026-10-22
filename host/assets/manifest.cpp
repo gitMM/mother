@@ -147,13 +147,26 @@ bool check_env(Checker& c, const TomlValue& env) {
     return true;
 }
 
+// A race's line: at least 2 points, each [x, y].
+bool check_line(Checker& c, const TomlValue& obj) {
+    const TomlValue* line = c.get(obj, "line", Type::Array, "[objective]");
+    if (!line) return false;
+    if (line->items.size() < 2) return c.fail(line->line, "[objective] line needs at least 2 points");
+    for (const TomlValue& p : line->items) {
+        if (p.type != Type::Array || p.items.size() != 2 || !p.items[0].is_number() || !p.items[1].is_number()) {
+            return c.fail(line->line, "[objective] line must be a list of [x, y] points");
+        }
+    }
+    return true;
+}
+
 bool check_objective(Checker& c, const TomlValue& obj) {
     const std::string w = "[objective]";
     if (!c.word(obj, "type", {"kill_all", "escape", "survive", "race", "collect"}, w)) return false;
     const std::string& type = obj.find("type")->string;
     if (type == "kill_all") return c.only(obj, {"type"}, w);
     if (type == "survive") return c.only(obj, {"type", "ticks"}, w) && c.integer(obj, "ticks", 1, w);
-    if (type == "race") return c.only(obj, {"type", "laps"}, w) && c.integer(obj, "laps", 1, w);
+    if (type == "race") return c.only(obj, {"type", "laps", "line"}, w) && c.integer(obj, "laps", 1, w) && check_line(c, obj);
     if (type == "collect") return c.only(obj, {"type", "archetype"}, w) && c.name(obj, "archetype", w);
     if (!c.only(obj, {"type", "exit"}, w)) return false;
     const TomlValue* exit = c.get(obj, "exit", Type::Table, w);

@@ -1,0 +1,23 @@
+[cart]
+id = "blockfall"
+title = "BLOCKFALL"
+family = "puzzle"
+
+[env]
+gravity = "down"
+surface = "none"
+scroll = "none"
+avatar = "none"
+spawn = "none"
+deploy = false
+bounds = { left = "solid", right = "solid", top = "solid", bottom = "solid" }
+
+# Survive two minutes; the clock starts when the first piece is dealt.
+[objective]
+type = "survive"
+ticks = 7200
+
+[[exports]]
+id = "falling_piece"
+archetype = "falling_piece"
+params = { tiles = 1 }

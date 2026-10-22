@@ -15,6 +15,7 @@ local collision = use("core/collision")
 local bounds = use("core/bounds")
 local spawn = use("core/spawn")
 local objective = use("core/objective")
+local race = use("core/race")
 local hash = use("core/hash")
 
 local live = entity.live
@@ -60,6 +61,7 @@ function world.spawn(self, archetype, params, x, y, faction)
     check.number(x, "world:spawn x", 3)
     check.number(y, "world:spawn y", 3)
     check.one_of(faction, entity.FACTIONS, "world:spawn faction", 3)
+    objective.start()
     return spawn.entity(archetype, p, x, y, faction).id
 end
 
@@ -211,6 +213,7 @@ function world.spawner(self, spec)
             error("world:spawner: points is empty", 2)
         end
     end
+    objective.start()
     return spawn.add_spawner({
         archetype = name,
         params = archetypes.params(name, def, spec.params, 3),
@@ -262,7 +265,7 @@ local function purge()
 end
 
 -- One tick of simulation (brief section 4, step 3). Entities spawned during a step first act in
--- the next one.
+-- the next one. Racers move along the racing line after contacts, before the objective.
 local function step()
     S.tick += 1
     local list = S.list
@@ -291,6 +294,7 @@ local function step()
         end
     end
     collision.contacts(n)
+    race.step()
     spawn.run()
     objective.check()
     events.flush()

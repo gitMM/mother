@@ -3,6 +3,7 @@
 -- e.mem.vx, e.mem.vy and copies it into e.vx, e.vy each update (act.drive), so the velocity
 -- survives a stun or a knockback; act.push changes it from outside (a reflector, a bounce).
 local S = use("core/state")
+local units = use("core/units")
 local entity = use("core/entity")
 local motion = use("core/motion")
 
@@ -105,6 +106,25 @@ function act.push(e, vx, vy)
     if e.mem.vx ~= nil then
         e.mem.vx, e.mem.vy = vx, vy
     end
+end
+
+-- A body's speed: `base`, doubled while a nitro boost runs (e.boost ticks left).
+function act.speed(e, base)
+    return if e.boost > 0 then base * 2 else base
+end
+
+-- How the camera moves each step: under auto scroll it rises, so something that keeps its place
+-- on the screen adds this to its velocity.
+function act.drift()
+    if S.env.scroll == "auto" then
+        return 0, -units.auto_scroll
+    end
+    return 0, 0
+end
+
+-- An angle in radians brought into -pi..pi.
+function act.wrap(a)
+    return a - 2 * math.pi * math.floor((a + math.pi) / (2 * math.pi))
 end
 
 -- Stunned or knocked back: it can't act, or use what it holds.

@@ -12,8 +12,8 @@ namespace mother {
 //   [env]           gravity = none|down, surface = none|ground, scroll = none|follow|auto,
 //                   avatar = none|up|lr|8dir|heading, spawn = none|world|camera, deploy = bool,
 //                   bounds = { left, right, top, bottom } each solid|kill|despawn
-//   [objective]     type = kill_all | survive (ticks) | race (laps) | escape (exit = { x, y, w, h })
-//                   | collect (archetype)
+//   [objective]     type = kill_all | survive (ticks) | race (laps, line = [[x, y], ...] with at
+//                   least 2 points) | escape (exit = { x, y, w, h }) | collect (archetype)
 //   [avatar]        archetype, damage = hp|stun, hp, x, y, optional params = { ... };
 //                   required when env.avatar isn't none, forbidden when it is
 //   [[spawn_points]] x, y; at least one when env.spawn isn't none, none when it is

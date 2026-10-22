@@ -1,0 +1,56 @@
+[cart]
+id = "rally"
+title = "RALLY"
+family = "driving"
+
+[env]
+gravity = "none"
+surface = "ground"
+scroll = "follow"
+avatar = "heading"
+spawn = "world"
+deploy = true
+bounds = { left = "solid", right = "solid", top = "solid", bottom = "solid" }
+
+# Three laps. The racing line runs clockwise round the middle of the track; its first point is
+# the start line.
+[objective]
+type = "race"
+laps = 3
+line = [[324, 84], [516, 84], [708, 84], [836, 116], [884, 212], [884, 372], [868, 500], [788, 564], [660, 548], [596, 468], [532, 388], [452, 404], [404, 484], [324, 564], [196, 564], [100, 500], [84, 372], [84, 212], [132, 116], [212, 84]]
+
+[avatar]
+archetype = "car"
+damage = "stun"
+hp = 1
+x = 300
+y = 84
+params = { sprite = 1, sfx_ram = 0 }
+
+# The grid, behind the player.
+[[spawn_points]]
+x = 264
+y = 68
+
+[[spawn_points]]
+x = 264
+y = 100
+
+[[spawn_points]]
+x = 228
+y = 84
+
+[[exports]]
+id = "rival_car"
+archetype = "rival_ai"
+params = { sprite = 11, sfx_ram = 0 }
+
+[[exports]]
+id = "oil"
+archetype = "oil"
+params = { sprite = 75, sfx_slip = 3 }
+
+[[exports]]
+id = "nitro"
+archetype = "nitro"
+params = { sprite = 77, sfx_boost = 4 }

@@ -85,9 +85,14 @@ function equip.pressed(e)
     return host.btnp(e.params.button)
 end
 
--- A loose pickup touched by the avatar is taken. Returns true when it was.
+-- A loose pickup touched by the avatar is taken (or renews the copy it holds). Returns true when
+-- it was.
 function equip.take(e, other)
-    return e.mem.holder == nil and other == S.avatar and equip.attach(e, other)
+    if e.mem.holder ~= nil or other ~= S.avatar then
+        return false
+    end
+    equip.attach(e, other)
+    return true
 end
 
 function equip.held(e)

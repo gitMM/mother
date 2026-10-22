@@ -1,13 +1,13 @@
 -- The world's part of the per-tick state hash (brief section 4): the step count, camera,
--- objective, spawners and, for every entity in id order, its id, faction, position, velocity,
--- HP, status timers and laps. Written little-endian into a buffer that the host hashes, with
+-- objective and game start, spawners and, for every entity in id order, its id, faction,
+-- position, velocity, HP, status, hurt and boost timers, laps and racing-line progress. Written little-endian into a buffer that the host hashes, with
 -- every NaN written as one value and -0 as 0 so the bytes match on every platform.
 local S = use("core/state")
 
 local hash = {}
 
 local FACTION = { player = 1, host = 2, wild = 3 }
-local ENTITY_BYTES = 4 + 1 + 5 * 8 + 5 * 4
+local ENTITY_BYTES = 4 + 1 + 5 * 8 + 7 * 4
 local SPAWNER_BYTES = 4 * 4
 
 local buf = buffer.create(1024)
@@ -41,6 +41,7 @@ function hash.write()
     o = f64(o, S.cam_x)
     o = f64(o, S.cam_y)
     o = u32(o, if S.objective_met then 1 else 0)
+    o = u32(o, if S.started == nil then 0 else S.started + 1)
     o = u32(o, #spawners)
     for i = 1, #spawners do
         local sp = spawners[i]
@@ -64,7 +65,9 @@ function hash.write()
         o = u32(o, e.slip)
         o = u32(o, e.knock)
         o = u32(o, e.hurt)
+        o = u32(o, e.boost)
         o = u32(o, e.laps)
+        o = u32(o, e.wp * 2 + (if e.started then 1 else 0))
     end
     return buf, o
 end

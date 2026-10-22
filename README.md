@@ -20,7 +20,7 @@ Use the `debug` preset for a debug build. The binary is `build/<preset>/bin/moth
 
 ```
 mother run carts/knightfall                        # a cart in a window, with sound
-mother run carts/breakout
+mother run carts/jumper                            # also breakout, blockfall, rally, starfighter
 mother run tests/carts/world
 mother run tests/carts/dice --headless --ticks 18000 --input fuzz:42 --seed 7
                                                    # no window or audio device; fuzzed input
@@ -38,8 +38,18 @@ replays them on Windows, macOS and Linux.
 
 ## Carts
 
-- **KNIGHTFALL** (`carts/knightfall`): survive three waves of skeletons. A sword, B dodge, R bomb.
+- **BLOCKFALL** (`carts/blockfall`): survive two minutes of tetrominoes. Left/right move, down soft
+  drop, up hard drop, A/B rotate.
 - **BREAKOUT** (`carts/breakout`): clear 108 bricks with 3 balls. Some bricks drop a laser (A).
+- **JUMPER** (`carts/jumper`): reach the flag within 300 s. A jump (hold for height), stomp enemies;
+  ?-blocks drop a fire flower: HP 2 and fireballs on B.
+- **KNIGHTFALL** (`carts/knightfall`): survive three waves of skeletons. A sword, B dodge, R bomb.
+- **RALLY** (`carts/rally`): win a 3-lap race against three rival cars. A gas, B brake, left/right
+  steer, L nitro, R oil (3 of each).
+- **STARFIGHTER** (`carts/starfighter`): survive 90 s of diving formations and mines. A fire,
+  B homing missile.
+
+Every cart has a title screen (A or Start to play) and a result screen, then exits.
 
 A cart is a folder with `cart.toml` and `main.luau` (plus any other `*.luau` modules, loaded with
 `import("name")`). `main.luau` defines `cart.init`, `cart.update`, `cart.draw` and `cart.hash`.

@@ -57,7 +57,7 @@ function status.behave(e)
     end
 end
 
--- Counts every timer down by one step.
+-- Counts every timer down by one step (the statuses, the hurt timer and a nitro boost).
 function status.tick(e)
     if e.stun > 0 then
         e.stun -= 1
@@ -70,6 +70,9 @@ function status.tick(e)
     end
     if e.hurt > 0 then
         e.hurt -= 1
+    end
+    if e.boost > 0 then
+        e.boost -= 1
     end
 end
 

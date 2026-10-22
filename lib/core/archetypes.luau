@@ -22,8 +22,11 @@
 --   hurts_owner  its contact damage also hits its own faction
 --   racer        counts as a racer for a race objective
 --   deployable   needs [env] deploy = true
+--   public       { name, ... }: mem fields that world:get views show, for HUDs and bots
 --   init(e) update(e) draw(e) on_contact(e, other) on_block(e, nx, ny, other)
 --   on_leave(e, reason)   reason: "death", "despawn" (an edge or the camera) or "remove"
+--   guard(e, other)       true when other's contact damage can't hurt e in this contact (a stomp
+--                         from above, a ram); asked before either side's damage
 local check = use("core/check")
 local axes = use("core/axes")
 
@@ -39,10 +42,15 @@ local FIELDS = {
     category = true, layer = true, size = true, w = true, h = true, kinematic = true, damage = true,
     hp = true, tier = true, requires = true, params = true, sprites = true, sounds = true,
     solid = true, static = true, reflector = true, hurts_owner = true, racer = true,
-    deployable = true, init = true, update = true, draw = true, on_contact = true, on_block = true,
-    on_leave = true,
+    deployable = true, public = true, init = true, update = true, draw = true, on_contact = true,
+    on_block = true, on_leave = true, guard = true,
 }
-local HOOKS = { "init", "update", "draw", "on_contact", "on_block", "on_leave" }
+local HOOKS = { "init", "update", "draw", "on_contact", "on_block", "on_leave", "guard" }
+-- Every view's own keys (core/entity.luau); public fields can't reuse them.
+local VIEW_KEYS = {
+    id = true, archetype = true, faction = true, layer = true, imported = true, x = true, y = true,
+    vx = true, vy = true, w = true, h = true, hp = true, laps = true, status = true,
+}
 local FLAGS = { "solid", "static", "reflector", "hurts_owner", "racer", "deployable" }
 local NO_ART = table.freeze({})
 
@@ -129,6 +137,15 @@ local function validate(name, d)
     end
     check_requires(d, where, bad)
     check_art(d, bad)
+    if d.public ~= nil then
+        check.table(d.public, `{where} public`, 0)
+        for _, name in d.public do
+            if type(name) ~= "string" or VIEW_KEYS[name] then
+                bad(`public: {name} must name a mem field that isn't already in every view`)
+            end
+        end
+        table.freeze(d.public)
+    end
     table.freeze(d.params)
     table.freeze(d.requires)
     if d.sprites then

@@ -1,5 +1,5 @@
 -- The simulation standard's numbers (brief section 6). All are the brief's, except hurt_ticks
--- (DECISIONS.md).
+-- and flag_offroad (DECISIONS.md).
 return table.freeze({
     -- speed tiers, px/tick; projectile is the hard maximum on each axis
     crawl = 0.5,
@@ -20,8 +20,9 @@ return table.freeze({
     screen_w = 320,
     screen_h = 180,
 
-    -- tile flag bits
+    -- tile flag bits; offroad is MOTHERLIB's own (DECISIONS.md)
     flag_solid = 0,
     flag_damageable = 1,
     flag_critical = 2,
+    flag_offroad = 3,
 })

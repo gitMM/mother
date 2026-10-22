@@ -21,6 +21,7 @@ return {
     spawners = {},
     next_spawner = 1,
     objective_met = false,
+    started = nil, -- the step count when the cart first spawned something (core/objective.luau)
 
     -- Per step, from collision: solid entities, and pairs that blocked each other.
     solids = {},

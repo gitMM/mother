@@ -36,7 +36,7 @@ return {
     end,
 
     update = function(e)
-        local speed = e.params.speed
+        local speed = act.speed(e, e.params.speed)
         local sx = stick()
         e.vx = sx * speed
         e.vy = math.clamp(e.mem.row - e.y, -speed, speed)

@@ -1,10 +1,11 @@
 -- The cart's [objective] (brief section 6), checked once per step. The "objective" event fires
 -- each time it becomes met; the cart decides what that means (win, next wave, ...).
 --   kill_all  no host-faction entity with HP is left, and no host spawner has spawns left
---   survive   `ticks` steps have run
+--   survive   `ticks` steps have run since the game started: the cart's first world:spawn or
+--             world:spawner call, so a title screen's time doesn't count
 --   escape    the avatar overlaps `exit`
---   race      a racer has `laps` laps: the avatar, or a host-faction racer (wild racers don't
---             count); the event names the winner
+--   race      a racer has `laps` laps (counted along the racing line, core/race.luau): the
+--             avatar, or a host-faction racer (wild racers don't count); the event names the winner
 --   collect   no entity of `archetype` is left
 local S = use("core/state")
 local entity = use("core/entity")
@@ -30,11 +31,19 @@ function objective.lap(e)
     e.laps += 1
 end
 
+-- The game starts with the cart's first spawn (world:spawn or world:spawner); survive counts from
+-- there.
+function objective.start()
+    if S.started == nil then
+        S.started = S.tick
+    end
+end
+
 local function met()
     local o = S.objective
     local list = S.list
     if o.type == "survive" then
-        return S.tick >= o.ticks, nil
+        return S.started ~= nil and S.tick >= S.started + o.ticks, nil
     elseif o.type == "escape" then
         local a = S.avatar
         local x = o.exit

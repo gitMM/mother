@@ -5,7 +5,7 @@ set(MOTHER_TEST_MODULES
     trk_format synth sequencer
     rng fixed_math fuzz trace
     toml manifest world collision damage spawn bounds objective
-    knightfall breakout carts
+    knightfall breakout blockfall starfighter jumper rally carts
 )
 
 set(test_sources test_main.cpp)
@@ -17,7 +17,8 @@ add_executable(mother_tests ${test_sources})
 target_link_libraries(mother_tests PRIVATE mother_host png2spr_lib)
 target_compile_options(mother_tests PRIVATE ${MOTHER_WARNINGS})
 target_compile_definitions(mother_tests PRIVATE MOTHER_TEST_CARTS="${CMAKE_CURRENT_SOURCE_DIR}/carts"
-                                                MOTHER_CARTS="${PROJECT_SOURCE_DIR}/carts")
+                                                MOTHER_CARTS="${PROJECT_SOURCE_DIR}/carts"
+                                                MOTHER_BOTS="${CMAKE_CURRENT_SOURCE_DIR}/bots")
 
 # Host unit tests: one CTest entry per module, selected by test-name prefix
 # (test_cart_vm.cpp's tests start with "cartvm_", and so on).
@@ -100,11 +101,11 @@ add_test(NAME cli.cart_world_fuzz
                  "-DEXPECT=^result=(win|lose|timeout) ticks=[0-9]+ seed=2 budget=0 hash=[0-9a-f]+ audio=[0-9a-f]+$"
                  -P ${CMAKE_CURRENT_SOURCE_DIR}/headless_repeat.cmake)
 
-# M6 acceptance (with unit.carts, where bots win and lose them): KNIGHTFALL and BREAKOUT run
+# M6 and M7 acceptance (with unit.carts, where bots win and lose them): all six carts run
 # 10 minutes under fuzz input with no errors or budget overruns, alike every time, and replay
 # their stored traces.
 set(games ${PROJECT_SOURCE_DIR}/carts)
-foreach(game knightfall breakout)
+foreach(game knightfall breakout blockfall starfighter jumper rally)
     foreach(seed 1 2 3)
         add_test(NAME cli.${game}_fuzz_${seed}
                  COMMAND ${CMAKE_COMMAND} -DMOTHER=$<TARGET_FILE:mother> -DRUNS=2 -DTICKS=36000

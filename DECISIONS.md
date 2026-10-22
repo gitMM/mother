@@ -176,3 +176,59 @@ One line per decision: date, decision, reason.
 - 2026-10-22 · Cart art, maps and audio (`sprites.spr`, `map.map`, `audio.trk`) were written once by throwaway Python scripts and are committed as the hand-editable source · as with the M2 and M3 fixtures.
 - 2026-10-22 · "Runs 10 minutes under fuzz" means up to 36,000 ticks with no error or budget overrun; a cart that wins or loses sooner has finished. CTest runs 3 seeds per cart, twice each, and replays a stored trace per cart · random input loses both carts within a few minutes.
 - 2026-10-22 · "Winnable and losable" is shown by bots in the unit tests. A bot is a Luau function that runs inside the cart's VM between ticks, reads the world and returns the next pad (`tests/bot.h`, through a new `CartVM::state()`); it only reads, so it plays as a player would · a real win needs real input; recorded play wasn't possible here.
+
+## M7
+
+- 2026-10-22 · Archetypes may define `guard(e, other)`: true shields e from other's contact damage in that contact. Both sides are asked before either takes damage · a stomp (runner) and a ram (cars) must land on one side only, and contact damage is otherwise symmetric.
+- 2026-10-22 · Archetypes may list `public` mem fields that `world:get` views show (falling_piece `shape rot col row`, piece_controller `lines piece`, car `angle`, nitro `charges`), and every view now has `laps` · HUDs and bots need that state (lines, charges, laps, a car's heading), and the world API has no other way to read it.
+- 2026-10-22 · Entities have a `boost` timer (nitro), hashed and counted down with the statuses; `act.speed(e, base)` doubles a speed while it runs, and every avatar archetype (knight, paddle_avatar, runner, ship, car) takes its speeds through it · nitro is equipment that works in five carts, so every avatar has to honour "speed ×2" the way it honours a status.
+- 2026-10-22 · A race objective needs `line = [[x, y], ...]` (px, at least 2 points), the racing line. A racer heads for one point at a time and has passed it within 64 px; point 1 is the start line, and each return to it after the rest is a lap. Progress is hashed · the brief has rivals "follow a waypoint racing line" and races count laps, but defines neither; 64 px covers RALLY's track (42 px to the grass edge) even across an inside corner.
+- 2026-10-22 · `survive` counts from the cart's first `world:spawn` or `world:spawner` call · otherwise time on a title screen would count; BLOCKFALL and STARFIGHTER start their games by spawning.
+- 2026-10-22 · Tile flag bit 3 = offroad (MOTHERLIB's own) · RALLY's offroad tiles need a tile property; bits 0–2 are the brief's.
+- 2026-10-22 · `fireball` (fire_flower) and `missile` (homing) are projectile archetypes that no cart exports, like `shot` · the brief's weapons need entities for what they fire.
+- 2026-10-22 · Numbers the brief leaves open:
+  - runner: accelerates and stops at 0.125 px/tick² up to run speed; jumps at 4 px/tick (30 px high); letting go of A cuts upward speed to 1; a stomp is landing on another faction (or anything that hurts its owner) with its feet at most 4 px into the other's top, then a bounce at 3 px/tick (4 with A held); a head-bump hits the solid tile over its head nearest its middle;
+  - walker and turtle: crawl speed along x, setting off towards their target, walking off ledges; a turtle killed by a hit from above (the source's centre above its top) leaves a shell sliding away from the hitter;
+  - fire_flower: an `hp` param (the holder's HP once taken, JUMPER 2); under gravity its fireballs set off level at fast speed, bounce 2 px/tick off floors and end at walls; without gravity they fly along the facing and ricochet 3 times; 150-tick life;
+  - cars (`core/drive.luau`): top speed run, acceleration 0.05, braking 0.1, reversing at walk speed, drag 0.01, turning 0.06 rad/tick, and grip removes 20% of the sideways slide each tick; a landed ram also knocks the hit car back for 8 ticks;
+  - rival_ai: brakes for turns over about 70°; after 60 ticks stuck it backs off for 30;
+  - nitro: the 300-tick recharge starts at the boost; a `charges` param (0 = no limit, RALLY 3) after which it is gone;
+  - ship: run speed; shots at projectile speed live 60 ticks;
+  - diver: swoops for 90 ticks (1 px/tick down, up to 1.5 px/tick sideways), dives at fast speed at where its target was, bullet at run speed;
+  - homing missile: fast speed, turns 0.1 rad/tick, 120-tick life;
+  - piece_controller: auto-repeat after 12 ticks then every 4; soft drop a cell every 2 ticks; the lock delay doesn't reset on moves.
+
+  These keep to the brief's speed tiers and play fairly.
+- 2026-10-22 · Rams: a car is hurt only when the other car closes in on it at least as fast as it closes in on the other (a rear-ender hurts the car in front, a head-on both, two cars at rest neither) · cars aren't solid, and without this, cars resting on top of each other spun each other out forever.
+- 2026-10-22 · Requirements:
+  - runner: gravity down, avatar lr;
+  - car: gravity none, surface ground, avatar heading (like every avatar body);
+  - ship: avatar up;
+  - piece_controller: gravity down, avatar none;
+  - walker: surface ground, spawn; turtle: gravity down too;
+  - rival_ai: gravity none, surface ground, spawn;
+  - diver, mine: spawn;
+  - falling_piece: gravity down;
+  - shell: deployable; oil: deployable, surface ground;
+  - fire_flower, nitro, homing: equipment.
+
+  Matches the expected matrix in section 9.
+- 2026-10-22 · Mines take hits without dying (stun response): any contact or hit sets one off, and the blast (radius 1 tile, tier 10, any faction) is its end · "detonates on any contact" leaves it no other way to die, and a stun body can still be hit and homed on.
+- 2026-10-22 · Under auto scroll the ship and divers add the camera's motion to their own (`act.drift`), and the ship keeps inside the view the camera will have after the step. A diver comes back in from its spawn point (relative to the camera) once its centre has left the view, or a solid edge stops it · "8-dir within the screen" and "exit and re-enter" are relative to a moving screen.
+- 2026-10-22 · BLOCKFALL: shapes I O T S Z J L with SRS rotation states turned in their box; pieces start centred on the well's top row; the wall kick tries one column left, then right; the controller clears full rows after each landing and dies when the next piece can't fit (the cart's top-out); it draws the next piece at its own position, the cart's preview box. A falling piece moves itself along the grid (static to statuses), never overwrites critical tiles, and with `tiles = 0` lands as nothing · the brief's rules; "N set by the piece" for the fall rate.
+- 2026-10-22 · STARFIGHTER: no map (the cart draws a starfield); every edge despawns, and the cart loses if the ship ever leaves; a formation of 4–8 divers from one random top spawn point every 300 ticks, down to 150 by the end, skipped while 10 divers are about; a mine every 90–180 ticks · formations "of 4–8 from the top" and mines "with the scroll".
+- 2026-10-22 · JUMPER:
+  - ground 3 tiles thick; 5 pits 3 tiles wide; pipes at most 3 tiles tall; stairs before the flag at column 192 (the exit);
+  - enemies appear as the camera comes within 40 px of their spawn points;
+  - the runner is held (stunned) behind the title screen;
+  - a ?-block is a damageable tile the cart watches: once broken, it becomes a used block and a fire flower drops out of its underside.
+
+  A 30 px jump can't reach the top of a block 4 tiles up, where Mario's flower sits.
+- 2026-10-22 · RALLY:
+  - the 120×80-tile track is drawn round the racing line: road within 30 px, offroad grass to 42, walls to 52, solid scenery beyond;
+  - the start line is the line's first point, with the player's car on pole and the rivals behind;
+  - a 3-second countdown holds the car with `slip` (a stun would show a spin-out), and rivals spawn at "GO";
+  - oil is dropped 14 px behind the car.
+- 2026-10-22 · Bots are `tests/bots/*.luau` files read at run time · editable without rebuilding, and too long to keep as C++ strings.
+- 2026-10-22 · All stored traces were re-recorded from the same fuzz seeds (the hash gained the game start, boosts and racing progress), and each new cart has one; RALLY's stops at 3,600 ticks, as a fuzzed race runs to about 4,000 · same inputs and outcomes, new hashes; a smaller file.
+- 2026-10-22 · Imported falling pieces should decay after 1,200 ticks, and can't land as sheet-3 tiles (map cells take tiles 0–3071); both are left for the import harness (M8) · they only arise with imports.

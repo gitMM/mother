@@ -1,0 +1,62 @@
+[cart]
+id = "starfighter"
+title = "STARFIGHTER"
+family = "shooter"
+
+[env]
+gravity = "none"
+surface = "none"
+scroll = "auto"
+avatar = "up"
+spawn = "camera"
+deploy = true
+bounds = { left = "despawn", right = "despawn", top = "despawn", bottom = "despawn" }
+
+# 90 seconds, from the moment the first formation is called in.
+[objective]
+type = "survive"
+ticks = 5400
+
+[avatar]
+archetype = "ship"
+damage = "hp"
+hp = 3
+x = 160
+y = 150
+params = { sprite = 1, shot_sprite = 13, sfx_fire = 0 }
+
+# Just above the screen (spawn = camera: relative to the view).
+[[spawn_points]]
+x = 40
+y = -10
+
+[[spawn_points]]
+x = 100
+y = -10
+
+[[spawn_points]]
+x = 160
+y = -10
+
+[[spawn_points]]
+x = 220
+y = -10
+
+[[spawn_points]]
+x = 280
+y = -10
+
+[[exports]]
+id = "diver"
+archetype = "diver"
+params = { sprite = 5, shot_sprite = 14, sfx_dive = 1, sfx_die = 2 }
+
+[[exports]]
+id = "mine"
+archetype = "mine"
+params = { sprite = 9, sprite_blast = 11, sfx_blast = 3 }
+
+[[exports]]
+id = "homing"
+archetype = "homing"
+params = { sprite = 17, missile_sprite = 15, sfx_fire = 4, sfx_take = 9 }

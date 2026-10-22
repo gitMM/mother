@@ -1,7 +1,7 @@
 -- Swept AABB collision (brief section 6). A body moves one axis at a time, swept against solid
 -- tiles and solid entities, so it can't pass through either at 4 px/tick. Then every pair
 -- whose paths overlapped during the step, or that stopped one another, is in contact: contact
--- damage, then each side's on_contact.
+-- damage (unless a guard hook shields its target), then each side's on_contact.
 local S = use("core/state")
 local units = use("core/units")
 local entity = use("core/entity")
@@ -188,6 +188,12 @@ local function key(a, b)
     return b.id * 67108864 + a.id
 end
 
+-- Is e safe from other's contact damage this time (the archetype's guard hook)?
+local function guarded(e, other)
+    local guard = e.arch.guard
+    return guard ~= nil and guard(e, other) == true
+end
+
 local function resolve(a, b)
     if a.id > b.id then
         a, b = b, a
@@ -195,11 +201,12 @@ local function resolve(a, b)
     if not (entity.live(a) and entity.live(b)) or a.ghost or b.ghost then
         return
     end
-    -- Both sides hit at once, even if the first hit kills.
-    if a.tier > 0 and factions.hostile(a, b) then
+    -- Both sides hit at once, even if the first hit kills; a guard (a stomp, a ram) shields one.
+    local a_safe, b_safe = guarded(a, b), guarded(b, a)
+    if a.tier > 0 and factions.hostile(a, b) and not b_safe then
         damage.hit(b, a.tier, a)
     end
-    if b.tier > 0 and factions.hostile(b, a) then
+    if b.tier > 0 and factions.hostile(b, a) and not a_safe then
         damage.hit(a, b.tier, b)
     end
     local on_a, on_b = a.arch.on_contact, b.arch.on_contact

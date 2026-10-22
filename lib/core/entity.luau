@@ -48,6 +48,7 @@ function entity.new(id, name, def, params, x, y, faction, tick)
         kx = 0,
         ky = 0,
         hurt = 0, -- no damage while above 0
+        boost = 0, -- ticks left at double speed (nitro); see act.speed
         src_x = nil, -- where the last hit came from
         src_y = nil,
 
@@ -62,6 +63,8 @@ function entity.new(id, name, def, params, x, y, faction, tick)
         dead = false,
         gone = false, -- removed without dying
         laps = 0,
+        wp = 1, -- the racing line point it heads for next (core/race.luau)
+        started = false, -- has passed the line's first point
         mem = {}, -- the archetype's own state
     }
 end
@@ -99,7 +102,7 @@ local function freeze_status(e)
 end
 
 function entity.view(e)
-    return table.freeze({
+    local v = {
         id = e.id,
         archetype = e.name,
         faction = e.faction,
@@ -112,8 +115,17 @@ function entity.view(e)
         w = e.hw * 2,
         h = e.hh * 2,
         hp = e.hp,
+        laps = e.laps,
         status = freeze_status(e),
-    })
+    }
+    -- an archetype's public state: the mem fields it lists in `public`
+    local public = e.arch.public
+    if public ~= nil then
+        for i = 1, #public do
+            v[public[i]] = e.mem[public[i]]
+        end
+    end
+    return table.freeze(v)
 end
 
 -- Filters for world:query and world:nearest. Every key is optional:

@@ -48,7 +48,8 @@ return {
         end
         if m.dodge > 0 then
             m.dodge -= 1
-            e.vx, e.vy = e.fx * units.fast, e.fy * units.fast
+            local speed = act.speed(e, units.fast)
+            e.vx, e.vy = e.fx * speed, e.fy * speed
             return
         end
         local x, y = act.dir8()
@@ -59,7 +60,8 @@ return {
             end
         end
         local k = if x ~= 0 and y ~= 0 then DIAGONAL else 1
-        e.vx, e.vy = x * p.speed * k, y * p.speed * k
+        local speed = act.speed(e, p.speed)
+        e.vx, e.vy = x * speed * k, y * speed * k
         if m.cool == 0 and btnp("b") then
             m.dodge, m.cool = p.dodge_ticks, p.dodge_cooldown
             e.hurt = math.max(e.hurt, p.dodge_ticks)

@@ -1,4 +1,7 @@
+#include <cstdio>
 #include <filesystem>
+#include <fstream>
+#include <sstream>
 #include <string>
 
 #include "bot.h"
@@ -6,91 +9,81 @@
 
 using namespace mother;
 
-// M6 acceptance: KNIGHTFALL and BREAKOUT can be won and lost. Bots play them through the pad.
+// M6 and M7 acceptance: every cart can be won and lost. Bots (tests/bots/*.luau) play them through
+// the pad; each win is played twice and must end on the same tick with the same state hash.
 
 namespace {
 
 const std::filesystem::path kCarts = MOTHER_CARTS;
+const std::filesystem::path kBots = MOTHER_BOTS;
 constexpr int kTenMinutes = 36000;
 
-// Walks to the nearest skeleton and swings when close; taps A to start.
-const char* const kKnightfallWinner = R"lua(
-local function sgn(v)
-    return if v > 2 then 1 elseif v < -2 then -1 else 0
-end
-return function(t)
-    local tap = if t % 2 == 0 then "a" else ""
-    local me = world:get(world:avatar())
-    if me == nil then
-        return 0, 0, ""
-    end
-    local id = world:nearest(me.x, me.y, { faction = "host", damageable = true })
-    if id == nil then
-        return 0, 0, tap
-    end
-    local s = world:get(id)
-    local dx, dy = s.x - me.x, s.y - me.y
-    return sgn(dx), sgn(dy), if dx * dx + dy * dy > 16 * 16 then "" else tap
-end
-)lua";
+std::string bot(const char* name, const std::string& prelude = "") {
+    std::ifstream in(kBots / (std::string(name) + ".luau"), std::ios::binary);
+    std::ostringstream text;
+    text << in.rdbuf();
+    return prelude + text.str();
+}
 
-// Starts the game, then stands still.
-const char* const kIdler = R"lua(
-return function(t)
-    return 0, 0, if t == 5 then "a" else ""
-end
-)lua";
+// A win, twice alike.
+bool wins_twice(const char* cart, const std::string& source) {
+    const BotRun run = play(kCarts / cart, source, kTenMinutes);
+    if (!ended(run, Outcome::Win)) return false;
+    std::printf("  %s won after %llu ticks\n", cart, static_cast<unsigned long long>(run.ticks));
+    const BotRun again = play(kCarts / cart, source, kTenMinutes);
+    return again.ticks == run.ticks && again.hash == run.hash;
+}
 
-// Keeps the paddle under the lowest ball, off-centre by a slowly changing amount so the ball
-// leaves at different angles; taps A to start and to fire lasers. With away = true it does the
-// opposite and keeps the paddle away from the ball (breakout_player prepends "local away = ...").
-const char* const kBreakoutPlayer = R"lua(
-return function(t)
-    local tap = if t % 2 == 0 then "a" else ""
-    local me = world:get(world:avatar())
-    local ids = world:query(0, 0, 320, 180, { archetype = "ball" })
-    if #ids == 0 then
-        return 0, 0, tap
-    end
-    local b = world:get(ids[1])
-    for i = 2, #ids do
-        local v = world:get(ids[i])
-        if v.y > b.y then
-            b = v
-        end
-    end
-    local aim = b.x + 10 * m.sin(t / 97)
-    if away then
-        aim = if b.x < 160 then 300 else 20
-    end
-    return math.clamp((aim - me.x) / 3, -1, 1), 0, tap
-end
-)lua";
-
-std::string breakout_player(bool away) {
-    return std::string("local away = ") + (away ? "true" : "false") + "\n" + kBreakoutPlayer;
+bool loses(const char* cart, const std::string& source) {
+    return ended(play(kCarts / cart, source, kTenMinutes), Outcome::Lose);
 }
 
 }  // namespace
 
 TEST(carts_knightfall_can_be_won) {
-    const BotRun run = play(kCarts / "knightfall", kKnightfallWinner, kTenMinutes);
-    CHECK(ended(run, Outcome::Win));
-    const BotRun again = play(kCarts / "knightfall", kKnightfallWinner, kTenMinutes);
-    CHECK(again.ticks == run.ticks && again.hash == run.hash);
+    CHECK(wins_twice("knightfall", bot("knightfall_winner")));
 }
 
 TEST(carts_knightfall_can_be_lost) {
-    CHECK(ended(play(kCarts / "knightfall", kIdler, kTenMinutes), Outcome::Lose));
+    CHECK(loses("knightfall", bot("idler")));
 }
 
 TEST(carts_breakout_can_be_won) {
-    const BotRun run = play(kCarts / "breakout", breakout_player(false), kTenMinutes);
-    CHECK(ended(run, Outcome::Win));
-    const BotRun again = play(kCarts / "breakout", breakout_player(false), kTenMinutes);
-    CHECK(again.ticks == run.ticks && again.hash == run.hash);
+    CHECK(wins_twice("breakout", bot("breakout_player", "local away = false\n")));
 }
 
 TEST(carts_breakout_can_be_lost) {
-    CHECK(ended(play(kCarts / "breakout", breakout_player(true), kTenMinutes), Outcome::Lose));
+    CHECK(loses("breakout", bot("breakout_player", "local away = true\n")));
+}
+
+TEST(carts_blockfall_can_be_won) {
+    CHECK(wins_twice("blockfall", bot("blockfall_stacker")));
+}
+
+TEST(carts_blockfall_can_be_lost) {
+    CHECK(loses("blockfall", bot("idler")));
+}
+
+TEST(carts_starfighter_can_be_won) {
+    CHECK(wins_twice("starfighter", bot("starfighter_pilot")));
+}
+
+TEST(carts_starfighter_can_be_lost) {
+    CHECK(loses("starfighter", bot("idler")));
+}
+
+TEST(carts_jumper_can_be_won) {
+    CHECK(wins_twice("jumper", bot("jumper_runner")));
+}
+
+TEST(carts_jumper_can_be_lost) {
+    CHECK(loses("jumper", bot("idler")));
+}
+
+TEST(carts_rally_can_be_won) {
+    CHECK(wins_twice("rally", bot("rally_driver")));
+}
+
+TEST(carts_rally_can_be_lost) {
+    CHECK(loses("rally", bot("idler")));
 }
