@@ -2,6 +2,7 @@
 #include <memory>
 #include <string>
 
+#include "assets/spr_format.h"
 #include "temp_cart.h"
 #include "test.h"
 #include "vm/cart_vm.h"
@@ -214,6 +215,58 @@ TEST(cartvm_pow_is_deterministic) {
             and math.isnan(2 ^ 1.5) and math.isnan(pow(2, 1.5))
         )" + lifecycle("mother.finish(if ok then \"win\" else \"lose\")"));
     CHECK(outcome(*vm) == Outcome::Win);
+}
+
+TEST(cartvm_sprite_map_and_text_api) {
+    SprData art;
+    art.defined[0] = true;
+    for (int y = 0; y < 8; ++y) {
+        for (int x = 0; x < 8; ++x) art.sheets.set(8 + x, y, 7);  // sprite 1
+    }
+    art.ramps[2] = {1, 2, 3};
+    const std::string map = "layer 0 2 1\n0001 0000\n" + flags_block(1, "03");
+    auto vm = open_main("sprite_api", R"(
+        local ok = mget(0, 0) == 1 and mget(1, 0) == 0 and mget(5, 5) == 0 and mget(0, 0, 1) == 0
+            and fget(1) == 3 and fget(1, 0) == true and fget(1, 2) == false
+        fset(1, 2, true)
+        ok = ok and fget(1) == 7
+        mset(1, 0, 1)
+        mset(9, 9, 1)
+        ok = ok and mget(1, 0) == 1
+        local r = ramp(2)
+        ok = ok and #r == 3 and r[1] == 1 and r[3] == 3 and #ramp(7) == 0
+        ok = ok and not pcall(mset, 0, 0, 3072) and not pcall(fget, 1, 8) and not pcall(ramp, 8)
+            and not pcall(mget, 0, 0, 2) and not pcall(fget, 3072)
+        )" + lifecycle("", "if not ok then error(\"checks failed\") end", R"(
+            cls(0)
+            map(0, 0, 0, 0, 2, 1)
+            spr(1, 20, 0)
+            print("A", 40, 0, 9)
+            sspr(8, 0, 8, 8, 60, 0, 16, 16)
+            palt(7, true)
+            spr(1, 80, 0)
+            palt()
+            if pcall(spr, 4096, 0, 0) then error("spr 4096") end
+        )"),
+                       {{"sprites.spr", write_spr(art)}, {"map.map", map}});
+    vm->update(PadState{}, 0);
+    CHECK(outcome(*vm) == Outcome::Running);
+    Framebuffer fb;
+    vm->draw(fb);
+    CHECK(outcome(*vm) == Outcome::Running);
+    if (outcome(*vm) != Outcome::Running) std::printf("  %s\n", vm->status().message.c_str());
+    CHECK_EQ(fb.pget(0, 0), 7);   // map cell 0
+    CHECK_EQ(fb.pget(8, 0), 7);   // map cell 1, set by mset
+    CHECK_EQ(fb.pget(20, 0), 7);  // spr
+    CHECK_EQ(fb.pget(40, 0), 9);  // print
+    CHECK_EQ(fb.pget(75, 15), 7); // 2x sspr
+    CHECK_EQ(fb.pget(80, 0), 0);  // palt made colour 7 transparent
+}
+
+TEST(cartvm_sprite_drawing_only_in_cart_draw) {
+    auto vm = open_main("spr_draw_only", lifecycle("", "spr(0, 0, 0)"));
+    vm->update(PadState{}, 0);
+    CHECK(has(vm->status().message, "spr() can only be called from cart.draw()"));
 }
 
 TEST(cartvm_logs_budget_errors) {

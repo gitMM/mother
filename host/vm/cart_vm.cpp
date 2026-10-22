@@ -55,7 +55,10 @@ bool CartVM::open(CartSource source) {
     lua_callbacks(L_)->userdata = this;
     lua_callbacks(L_)->interrupt = on_interrupt;
 
+    painter_.set_assets(&source_.art.sheets, &source_.map);
     open_gfx_api(L_);
+    open_sprite_api(L_);
+    open_map_api(L_);
     open_input_api(L_);
     open_host_api(L_);
     luaL_sandbox(L_);  // freezes every library table, the API and the globals

@@ -1,6 +1,7 @@
 set(MOTHER_TEST_MODULES
     palette framebuffer present pad keymap clock options pattern headless
     draw cart_source cart_vm
+    spr_format map_format draw_sprite png2spr
 )
 
 set(test_sources test_main.cpp)
@@ -9,7 +10,7 @@ foreach(module ${MOTHER_TEST_MODULES})
 endforeach()
 
 add_executable(mother_tests ${test_sources})
-target_link_libraries(mother_tests PRIVATE mother_host)
+target_link_libraries(mother_tests PRIVATE mother_host png2spr_lib)
 target_compile_options(mother_tests PRIVATE ${MOTHER_WARNINGS})
 target_compile_definitions(mother_tests PRIVATE MOTHER_TEST_CARTS="${CMAKE_CURRENT_SOURCE_DIR}/carts")
 
@@ -46,3 +47,16 @@ set_tests_properties(cli.cart_sandbox PROPERTIES PASS_REGULAR_EXPRESSION "result
 
 add_test(NAME cli.cart_missing COMMAND mother run ${carts}/no_such_cart --headless --ticks 10)
 set_tests_properties(cli.cart_missing PROPERTIES WILL_FAIL TRUE)
+
+# M2 acceptance: png2spr turns art.png into exactly the committed sprites.spr (unit.png2spr then
+# checks that the cart draws it pixel-exact), and the round-trip cart runs.
+add_test(NAME cli.png2spr_roundtrip
+         COMMAND ${CMAKE_COMMAND} -DPNG2SPR=$<TARGET_FILE:png2spr> -DPNG=${carts}/roundtrip/art.png
+                 -DOUT=${CMAKE_CURRENT_BINARY_DIR}/roundtrip.spr -DEXPECTED=${carts}/roundtrip/sprites.spr
+                 -P ${CMAKE_CURRENT_SOURCE_DIR}/png2spr_check.cmake)
+
+add_test(NAME cli.png2spr_usage COMMAND png2spr)
+set_tests_properties(cli.png2spr_usage PROPERTIES WILL_FAIL TRUE)
+
+add_test(NAME cli.cart_roundtrip COMMAND mother run ${carts}/roundtrip --headless --ticks 60)
+set_tests_properties(cli.cart_roundtrip PROPERTIES PASS_REGULAR_EXPRESSION "result=timeout ticks=60")

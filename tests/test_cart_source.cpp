@@ -59,9 +59,33 @@ TEST(cartsource_ignores_other_files) {
     CartSource src;
     std::string error;
     TempCart cart("other_files", {{"cart.toml", kTestToml}, {"main.luau", ""}, {"notes.txt", "x"},
-                                  {"sprites.spr", "x"}, {"main.lua", "x"}});
+                                  {"audio.trk", "x"}, {"main.lua", "x"}});
     CHECK(load(cart.dir(), src, error));
     CHECK_EQ(src.modules.size(), size_t(1));
+}
+
+TEST(cartsource_loads_sprites_and_map) {
+    CartSource src;
+    std::string error;
+    TempCart cart("assets", {{"cart.toml", kTestToml},
+                             {"main.luau", ""},
+                             {"sprites.spr", "ramp 1 4 5\n"},
+                             {"map.map", "layer 1 2 1\n0003 0004\n" + flags_block(3, "01")}});
+    CHECK(load(cart.dir(), src, error));
+    CHECK(src.art.ramps[1] == std::vector<uint8_t>({4, 5}));
+    CHECK_EQ(src.map.get(1, 1, 0), 4);
+    CHECK_EQ(src.map.flags[3], 1);
+}
+
+TEST(cartsource_asset_errors_name_file_and_line) {
+    CartSource src;
+    std::string error;
+    TempCart bad_spr("bad_spr", {{"cart.toml", kTestToml}, {"main.luau", ""}, {"sprites.spr", "sheet 0\nAAAA\n"}});
+    CHECK(!load(bad_spr.dir(), src, error));
+    CHECK(error.find("sprites.spr:2:") != std::string::npos);
+    TempCart bad_map("bad_map", {{"cart.toml", kTestToml}, {"main.luau", ""}, {"map.map", "layer 0 1 1\n0001\n"}});
+    CHECK(!load(bad_map.dir(), src, error));
+    CHECK(error.find("map.map: missing the flags section") != std::string::npos);
 }
 
 TEST(cartsource_module_names) {

@@ -24,6 +24,7 @@ function cart.draw()
     circfill(40, 140, 20, 12)
     circ(280, 40, 24, 9)
     rectfill(box.x, box.y, box.size, box.size, if box.flash > 0 then 9 else 22)
+    print("HELLO, MOTHER", 10, 10, 22)
 
     local px, py, down = pointer()
     if px then

@@ -39,6 +39,8 @@ public:
     static CartVM& of(lua_State* L);
     Painter& painter_in_draw(lua_State* L, const char* fn);  // errors outside cart.draw()
     const PadState& pad() const { return pad_; }
+    TileMap& tilemap() { return source_.map; }
+    const Ramps& ramps() const { return source_.art.ramps; }
     uint64_t ticks() const { return ticks_; }  // ticks started; 0 during cart.init
     void finish(Outcome outcome);
     void log(const std::string& line);

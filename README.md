@@ -26,5 +26,13 @@ mother run                                         # palette test pattern
 
 A cart is a folder with `cart.toml` and `main.luau` (plus any other `*.luau` modules, loaded with
 `import("name")`). `main.luau` defines `cart.init`, `cart.update`, `cart.draw` and `cart.hash`.
+Optional `sprites.spr` (sheets 0–2 and palette ramps) and `map.map` (two tile layers and tile
+flags) are plain text; their grammars are in `host/assets/spr_format.h` and `host/assets/map_format.h`.
+
+Convert a PNG (up to 256×768, alpha below 128 is transparent) to sprite sheets:
+
+```
+png2spr art.png sprites.spr
+```
 
 Keys: arrows/WASD = stick, Z = A, X = B, C = X, V = Y, Q = L, E = R, Enter = Start. Gamepads work too.

@@ -3,10 +3,13 @@
 #include <algorithm>
 #include <cstdlib>
 
+#include "gfx/font.h"
+
 namespace mother {
 
 Painter::Painter() {
     pal_reset();
+    palt_reset();
 }
 
 void Painter::camera(int x, int y) {
@@ -113,6 +116,23 @@ void Painter::circfill(int x, int y, int r, uint8_t c) {
             --dx;
             err += 2 * (dy - dx) + 1;
         }
+    }
+}
+
+void Painter::print(std::string_view text, int x, int y, uint8_t c) {
+    const int left = x - cam_x_;
+    int cx = left, cy = y - cam_y_;
+    for (const char ch : text) {
+        if (ch == '\n') {
+            cx = left;
+            cy += kGlyphH;
+            continue;
+        }
+        const uint16_t bits = glyph_bits(static_cast<unsigned char>(ch));
+        for (int bit = 0; bit < 15; ++bit) {
+            if (bits & (1u << bit)) plot(cx + bit % 3, cy + bit / 3, c);
+        }
+        cx += kGlyphW;
     }
 }
 

@@ -4,6 +4,8 @@
 #include <iterator>
 #include <system_error>
 
+#include "assets/map_format.h"
+
 namespace mother {
 
 namespace fs = std::filesystem;
@@ -70,6 +72,22 @@ bool load_cart_source(const fs::path& dir, CartSource& out, std::string& error) 
         error = "cart source is " + std::to_string(total) + " bytes of Luau; the limit is " +
                 std::to_string(kMaxCartSource);
         return false;
+    }
+
+    std::string text;
+    if (fs::is_regular_file(dir / "sprites.spr", ec)) {
+        if (!read_file(dir / "sprites.spr", text)) {
+            error = "could not read " + (dir / "sprites.spr").string();
+            return false;
+        }
+        if (!parse_spr(text, "sprites.spr", source.art, error)) return false;
+    }
+    if (fs::is_regular_file(dir / "map.map", ec)) {
+        if (!read_file(dir / "map.map", text)) {
+            error = "could not read " + (dir / "map.map").string();
+            return false;
+        }
+        if (!parse_map(text, "map.map", source.map, error)) return false;
     }
     out = std::move(source);
     return true;
