@@ -93,7 +93,7 @@ bool pump_events(SDL_Gamepad*& gamepad) {
     return running;
 }
 
-RunResult run_loop(Program& prog, int64_t max_ticks, Video& video) {
+RunResult run_loop(Program& prog, const WindowedRun& run, Video& video) {
     Framebuffer fb;
     std::vector<uint32_t> argb(size_t(kScreenW * kScreenH));
     SDL_Gamepad* gamepad = nullptr;
@@ -104,7 +104,7 @@ RunResult run_loop(Program& prog, int64_t max_ticks, Video& video) {
     uint64_t ticks = 0;
     uint64_t last = SDL_GetTicksNS();
     auto running = [&] {
-        return prog.status().outcome == Outcome::Running && (max_ticks < 0 || ticks < uint64_t(max_ticks));
+        return prog.status().outcome == Outcome::Running && (run.max_ticks < 0 || ticks < uint64_t(run.max_ticks));
     };
 
     while (running() && pump_events(gamepad)) {
@@ -112,11 +112,17 @@ RunResult run_loop(Program& prog, int64_t max_ticks, Video& video) {
         const int due = clock.advance(now - last);
         last = now;
         for (int i = 0; i < due && running(); ++i) {
-            RawInput raw = read_raw_input(SDL_GetKeyboardState(nullptr), gamepad);
-            read_pointer(video, raw);
-            pad = build_pad(raw, pad);
+            if (run.input) {
+                pad = run.input->next(pad);
+            } else {
+                RawInput raw = read_raw_input(SDL_GetKeyboardState(nullptr), gamepad);
+                read_pointer(video, raw);
+                pad = build_pad(raw, pad);
+            }
             prog.update(pad, ticks);
             ++ticks;
+            if (prog.status().outcome == Outcome::Error) break;
+            if (run.observe) run.observe(ticks, pad, prog.state_hash());
             prog.take_audio(commands);
             audio.push(commands);
         }
@@ -125,12 +131,12 @@ RunResult run_loop(Program& prog, int64_t max_ticks, Video& video) {
         present(video, fb, argb);
     }
     if (gamepad) SDL_CloseGamepad(gamepad);
-    return {result_name(prog.status().outcome), ticks};
+    return {result_name(prog.status().outcome), ticks, 0, prog.state_hash(), prog.budget_errors()};
 }
 
 }  // namespace
 
-RunResult run_windowed(Program& prog, int64_t max_ticks) {
+RunResult run_windowed(Program& prog, const WindowedRun& run) {
     SDL_SetMainReady();
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD)) {
         std::fprintf(stderr, "mother: SDL_Init failed: %s\n", SDL_GetError());
@@ -140,7 +146,7 @@ RunResult run_windowed(Program& prog, int64_t max_ticks) {
     {
         Video video;
         if (open_video(video)) {
-            result = run_loop(prog, max_ticks, video);
+            result = run_loop(prog, run, video);
         } else {
             std::fprintf(stderr, "mother: could not open the window: %s\n", SDL_GetError());
         }

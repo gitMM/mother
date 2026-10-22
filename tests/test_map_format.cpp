@@ -72,6 +72,26 @@ TEST(mapformat_errors_name_the_line) {
     CHECK(fails_with("tiles\n", "x.map:1: expected `layer N W H` or `flags`"));
 }
 
+TEST(mapformat_tilemap_hash_follows_the_contents) {
+    TileMap map;
+    std::string error;
+    CHECK(parse("layer 0 2 2\n0000 0001\n0002 0000\n" + flags_block(5, "01"), map, error));
+    map.rehash();
+    const uint64_t start = map.hash;
+    map.set(0, 0, 0, 7);
+    CHECK(map.hash != start);
+    map.set(0, 0, 0, 0);
+    CHECK_EQ(map.hash, start);  // back to the same contents, back to the same hash
+    map.set_flags(5, 3);
+    const uint64_t changed = map.hash;
+    map.rehash();
+    CHECK_EQ(map.hash, changed);  // the running hash equals a full recompute
+    map.set_flags(5, 1);
+    CHECK_EQ(map.hash, start);
+    map.set(0, 9, 9, 3);  // outside the layer: no change
+    CHECK_EQ(map.hash, start);
+}
+
 TEST(mapformat_set_ignores_cells_outside_the_layer) {
     TileMap map;
     std::string error;

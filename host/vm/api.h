@@ -15,10 +15,13 @@ void open_sprite_api(lua_State* L);  // spr sspr map palt ramp
 void open_map_api(lua_State* L);     // mget mset fget fset
 void open_input_api(lua_State* L);   // btn btnp stick pointer
 void open_audio_api(lua_State* L);   // sfx music stop beat song_get song_set
+void open_math_api(lua_State* L);    // the m table, rnd rndi
 void open_host_api(lua_State* L);    // mother.finish mother.log tick import
 
 // The cart's painter for a drawing function; raises a Luau error outside cart.draw().
 Painter& draw_painter(lua_State* L, const char* fn);
+// Raises a Luau error inside cart.draw(), for calls that change simulation state.
+void not_in_draw(lua_State* L, const char* fn);
 
 // Argument helpers for the bindings. Coordinates are floored and clamped to -32768..32767,
 // with NaN read as 0, so no primitive can loop for long; colours are masked into 0-63.

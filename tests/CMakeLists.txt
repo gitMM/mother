@@ -3,6 +3,7 @@ set(MOTHER_TEST_MODULES
     draw cart_source cart_vm
     spr_format map_format draw_sprite png2spr
     trk_format synth sequencer
+    rng fixed_math fuzz trace
 )
 
 set(test_sources test_main.cpp)
@@ -30,7 +31,7 @@ set_tests_properties(cli.headless_3600 PROPERTIES PASS_REGULAR_EXPRESSION "^resu
 
 add_test(NAME cli.headless_repeatable
          COMMAND ${CMAKE_COMMAND} -DMOTHER=$<TARGET_FILE:mother> -DRUNS=3 -DTICKS=3600
-                 "-DEXPECT=^result=timeout ticks=3600 audio=[0-9a-f]+$"
+                 "-DEXPECT=^result=timeout ticks=3600 seed=0 budget=0 hash=[0-9a-f]+ audio=[0-9a-f]+$"
                  -P ${CMAKE_CURRENT_SOURCE_DIR}/headless_repeat.cmake)
 
 add_test(NAME cli.headless_needs_ticks COMMAND mother run --headless)
@@ -40,7 +41,7 @@ set_tests_properties(cli.headless_needs_ticks PROPERTIES WILL_FAIL TRUE)
 # the rest are out of reach.
 add_test(NAME cli.cart_hello
          COMMAND ${CMAKE_COMMAND} -DMOTHER=$<TARGET_FILE:mother> -DRUNS=2 -DTICKS=600
-                 -DCART=${carts}/hello "-DEXPECT=^result=timeout ticks=600 audio=[0-9a-f]+$"
+                 -DCART=${carts}/hello "-DEXPECT=^result=timeout ticks=600 seed=0 budget=0 hash=[0-9a-f]+ audio=[0-9a-f]+$"
                  -P ${CMAKE_CURRENT_SOURCE_DIR}/headless_repeat.cmake)
 
 add_test(NAME cli.cart_sandbox COMMAND mother run ${carts}/sandbox --headless --ticks 10)
@@ -66,9 +67,29 @@ set_tests_properties(cli.cart_roundtrip PROPERTIES PASS_REGULAR_EXPRESSION "resu
 # pinned, so Debug and Release builds and every CI platform must render the very same samples.
 add_test(NAME cli.cart_song
          COMMAND ${CMAKE_COMMAND} -DMOTHER=$<TARGET_FILE:mother> -DRUNS=3 -DTICKS=1200
-                 -DCART=${carts}/song "-DEXPECT=^result=timeout ticks=1200 audio=889c5b9269c72083$"
+                 -DCART=${carts}/song "-DEXPECT=^result=timeout ticks=1200 seed=0 budget=0 hash=[0-9a-f]+ audio=889c5b9269c72083$"
                  -P ${CMAKE_CURRENT_SOURCE_DIR}/headless_repeat.cmake)
 
 add_test(NAME cli.cart_song_wav
          COMMAND mother run ${carts}/song --headless --ticks 600 --wav ${CMAKE_CURRENT_BINARY_DIR}/song.wav)
 set_tests_properties(cli.cart_song_wav PROPERTIES PASS_REGULAR_EXPRESSION "result=timeout ticks=600")
+
+# M4 acceptance: one stored trace per cart, recorded once from fuzz input. Replaying it must
+# reproduce every tick's state hash, on every build and every CI platform.
+foreach(cart dice hello song roundtrip sandbox)
+    add_test(NAME cli.replay_${cart}
+             COMMAND mother replay ${carts}/${cart} ${CMAKE_CURRENT_SOURCE_DIR}/traces/${cart}.trace)
+    set_tests_properties(cli.replay_${cart} PROPERTIES PASS_REGULAR_EXPRESSION "replay=ok")
+endforeach()
+
+# Fuzzed headless runs repeat exactly; record then replay agrees within one build.
+add_test(NAME cli.fuzz_repeatable
+         COMMAND ${CMAKE_COMMAND} -DMOTHER=$<TARGET_FILE:mother> -DRUNS=2 -DTICKS=3000
+                 -DCART=${carts}/dice "-DARGS=--input;fuzz:11;--seed;12"
+                 "-DEXPECT=^result=timeout ticks=3000 seed=12 budget=0 hash=[0-9a-f]+ audio=[0-9a-f]+$"
+                 -P ${CMAKE_CURRENT_SOURCE_DIR}/headless_repeat.cmake)
+
+add_test(NAME cli.record_then_replay
+         COMMAND ${CMAKE_COMMAND} -DMOTHER=$<TARGET_FILE:mother> -DCART=${carts}/dice
+                 -DTRACE=${CMAKE_CURRENT_BINARY_DIR}/dice_fresh.trace
+                 -P ${CMAKE_CURRENT_SOURCE_DIR}/record_replay.cmake)

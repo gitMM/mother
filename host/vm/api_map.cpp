@@ -58,12 +58,9 @@ int l_fget(lua_State* L) {
 int l_fset(lua_State* L) {
     const int tile = arg_tile(L, 1, "fset");
     const int bit = arg_bit(L, 2, "fset");
-    uint8_t& flags = CartVM::of(L).tilemap().flags[size_t(tile)];
-    if (lua_toboolean(L, 3)) {
-        flags = uint8_t(flags | (1u << bit));
-    } else {
-        flags = uint8_t(flags & ~(1u << bit));
-    }
+    TileMap& map = CartVM::of(L).tilemap();
+    const uint8_t flags = map.flags[size_t(tile)];
+    map.set_flags(tile, lua_toboolean(L, 3) ? uint8_t(flags | (1u << bit)) : uint8_t(flags & ~(1u << bit)));
     return 0;
 }
 

@@ -2,6 +2,7 @@
 add_library(mother_assets STATIC
     assets/map_format.cpp
     assets/spr_format.cpp
+    assets/tilemap.cpp
     assets/trk_cell.cpp
     assets/trk_format.cpp
     gfx/palette.cpp
@@ -20,19 +21,25 @@ add_library(mother_host STATIC
     gfx/font.cpp
     gfx/framebuffer.cpp
     gfx/present.cpp
+    input/fuzz.cpp
     input/keymap.cpp
     input/pad.cpp
     runner/clock.cpp
+    runner/commands.cpp
     runner/headless.cpp
     runner/options.cpp
     runner/test_pattern.cpp
+    runner/trace.cpp
     runner/windowed.cpp
+    runtime/fixed_math.cpp
+    runtime/rng.cpp
     vm/api_args.cpp
     vm/api_audio.cpp
     vm/api_gfx.cpp
     vm/api_host.cpp
     vm/api_input.cpp
     vm/api_map.cpp
+    vm/api_math.cpp
     vm/api_sprite.cpp
     vm/cart_source.cpp
     vm/cart_vm.cpp

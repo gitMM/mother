@@ -1,6 +1,7 @@
 #include <filesystem>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "assets/spr_format.h"
 #include "temp_cart.h"
@@ -305,6 +306,78 @@ TEST(cartvm_audio_api) {
     Framebuffer fb;
     vm->draw(fb);
     CHECK(outcome(*vm) == Outcome::Running);
+}
+
+TEST(cartvm_rng_follows_the_seed) {
+    const std::string main = R"(
+        local values = {}
+        function cart.init() for i = 1, 8 do table.insert(values, rndi(1, 1000000)) end end
+        function cart.update() local r = rnd(10) if r < 0 or r >= 10 then error("rnd range") end end
+        function cart.draw() end
+        function cart.hash() return values[1] * 1000 + values[8] end
+    )";
+    CartSource s1, s2, s3;
+    std::string error;
+    TempCart cart("rng_seed", {{"cart.toml", kTestToml}, {"main.luau", main}});
+    CHECK(load_cart_source(cart.dir(), s1, error) && load_cart_source(cart.dir(), s2, error) &&
+          load_cart_source(cart.dir(), s3, error));
+    CartVM a, b, c;
+    CHECK(a.open(std::move(s1), 5) && b.open(std::move(s2), 5) && c.open(std::move(s3), 6));
+    if (a.status().outcome == Outcome::Error) std::printf("  %s\n", a.status().message.c_str());
+    for (uint64_t t = 0; t < 3; ++t) {
+        a.update(PadState{}, t);
+        b.update(PadState{}, t);
+        c.update(PadState{}, t);
+        CHECK_EQ(a.state_hash(), b.state_hash());
+        CHECK(a.state_hash() != c.state_hash());
+    }
+    CHECK(a.status().outcome == Outcome::Running);
+}
+
+TEST(cartvm_math_api_and_draw_rules) {
+    auto vm = open_main("math_api", R"(
+        local ok = m.sin(0) == 0 and m.cos(0) == 1 and m.exp(0) == 1 and m.sqrt(16) == 4
+            and m.floor(-1.5) == -2 and m.clamp(5, 0, 3) == 3 and m.lerp(2, 4, 0.5) == 3
+            and math.abs(m.atan2(1, 1) - math.pi / 4) < 1e-15
+        ok = ok and not pcall(rndi, 3, 1) and not pcall(rndi, 1.5, 3) and not pcall(rndi, 0, 2 ^ 32)
+        )" + lifecycle("if not ok then error(\"checks failed\") end", "",
+                       "if pcall(rnd) or pcall(rndi, 1, 2) then error(\"rnd in draw\") end"));
+    CHECK(outcome(*vm) == Outcome::Running);
+    if (outcome(*vm) != Outcome::Running) std::printf("  %s\n", vm->status().message.c_str());
+    Framebuffer fb;
+    vm->draw(fb);
+    CHECK(outcome(*vm) == Outcome::Running);
+}
+
+// Runs a cart for 4 ticks and returns its state hash after each.
+std::vector<uint64_t> hashes_of(const std::string& name, const std::string& update, const std::string& hash) {
+    const std::string map = "layer 0 2 1\n0000 0000\n" + flags_block();
+    auto vm = open_main(name,
+                        "function cart.init() end\nfunction cart.update() " + update +
+                            " end\nfunction cart.draw() end\nfunction cart.hash() return " + hash + " end\n",
+                        {{"map.map", map}});
+    std::vector<uint64_t> out;
+    for (uint64_t t = 0; t < 4; ++t) {
+        vm->update(PadState{}, t);
+        out.push_back(vm->state_hash());
+    }
+    return out;
+}
+
+TEST(cartvm_state_hash_covers_tilemap_and_cart_hash) {
+    const std::vector<uint64_t> base = hashes_of("hash_base", "", "0");
+    const std::vector<uint64_t> edit = hashes_of("hash_edit", "if tick() == 2 then mset(0, 0, 1) end", "0");
+    const std::vector<uint64_t> value = hashes_of("hash_value", "", "if tick() >= 3 then 0.5 else 0");
+    CHECK(base[0] != base[1]);  // the tick count is in the hash
+    CHECK_EQ(edit[0], base[0]);
+    CHECK(edit[1] != base[1]);  // one mset changes the hash from that tick on
+    CHECK_EQ(value[1], base[1]);
+    CHECK(value[2] != base[2]);  // so does cart.hash()'s value
+
+    auto bad = open_main("bad_hash", "function cart.init() end\nfunction cart.update() end\n"
+                                     "function cart.draw() end\nfunction cart.hash() return \"x\" end\n");
+    bad->update(PadState{}, 0);
+    CHECK(has(bad->status().message, "cart.hash() must return a number"));
 }
 
 TEST(cartvm_logs_budget_errors) {

@@ -19,12 +19,20 @@ Use the `debug` preset for a debug build. The binary is `build/<preset>/bin/moth
 ## Run
 
 ```
-mother run tests/carts/song                        # a cart in a window, with sound
-mother run tests/carts/song --headless --ticks 600 # no window or audio device; prints the result,
-                                                   # tick count and a hash of the rendered audio
+mother run tests/carts/dice                        # a cart in a window, with sound
+mother run tests/carts/dice --headless --ticks 18000 --input fuzz:42 --seed 7
+                                                   # no window or audio device; fuzzed input
 mother run tests/carts/song --headless --ticks 600 --wav song.wav   # also write the audio
+mother record tests/carts/dice out.trace           # play in a window; writes seed, pads, hashes
+mother record tests/carts/dice out.trace --headless --ticks 1800 --input fuzz:1
+mother replay tests/carts/dice out.trace --hash    # re-runs it; fails on any state-hash mismatch
+mother run tests/carts/dice --input trace:out.trace   # watch a trace
 mother run                                         # palette test pattern
 ```
+
+Each run ends with one line: `result=… ticks=… seed=… budget=… hash=…`, plus `audio=…` headless
+and `replay=ok` or `replay=mismatch …` for replays. `tests/traces/` holds one trace per test cart;
+CI replays them on Windows, macOS and Linux.
 
 A cart is a folder with `cart.toml` and `main.luau` (plus any other `*.luau` modules, loaded with
 `import("name")`). `main.luau` defines `cart.init`, `cart.update`, `cart.draw` and `cart.hash`.

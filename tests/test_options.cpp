@@ -21,6 +21,8 @@ TEST(options_run_headless_with_ticks) {
     CHECK(r.opts.headless);
     CHECK_EQ(r.opts.ticks, 3600);
     CHECK(r.opts.cart.empty());
+    CHECK(!r.opts.has_seed);
+    CHECK(r.opts.input == InputKind::Live);
 }
 
 TEST(options_run_cart_windowed) {
@@ -35,6 +37,41 @@ TEST(options_run_windowed_with_tick_limit) {
     const ParseResult r = parse({"run", "--ticks", "120"});
     CHECK(r.ok);
     CHECK_EQ(r.opts.ticks, 120);
+}
+
+TEST(options_seed_and_inputs) {
+    ParseResult r = parse({"run", "c", "--headless", "--ticks", "18000", "--input", "fuzz:42", "--seed", "7"});
+    CHECK(r.ok);
+    CHECK(r.opts.input == InputKind::Fuzz);
+    CHECK_EQ(r.opts.fuzz_seed, uint64_t(42));
+    CHECK(r.opts.has_seed);
+    CHECK_EQ(r.opts.seed, uint64_t(7));
+    r = parse({"run", "c", "--headless", "--input", "trace:a.trace"});  // the trace sets the length
+    CHECK(r.ok);
+    CHECK(r.opts.input == InputKind::Trace);
+    CHECK_EQ(r.opts.input_trace, std::string("a.trace"));
+    CHECK(!parse({"run", "c", "--input", "trace:a.trace", "--seed", "3"}).ok);
+    CHECK(!parse({"run", "c", "--input", "fuzz:x"}).ok);
+    CHECK(!parse({"run", "c", "--input", "keyboard"}).ok);
+    CHECK(!parse({"run", "c", "--seed", "-1"}).ok);
+}
+
+TEST(options_record_and_replay) {
+    ParseResult r = parse({"record", "carts/rally", "out.trace"});
+    CHECK(r.ok);
+    CHECK_EQ(r.opts.command, std::string("record"));
+    CHECK_EQ(r.opts.cart, std::string("carts/rally"));
+    CHECK_EQ(r.opts.trace, std::string("out.trace"));
+    CHECK(parse({"record", "c", "t", "--headless", "--ticks", "60", "--input", "fuzz:1"}).ok);
+    CHECK(!parse({"record", "c", "t", "--input", "trace:x"}).ok);
+    CHECK(!parse({"record", "c"}).ok);
+    r = parse({"replay", "carts/rally", "out.trace", "--hash"});
+    CHECK(r.ok);
+    CHECK(r.opts.headless);
+    CHECK(r.opts.print_hashes);
+    CHECK(!parse({"replay", "c", "t", "--ticks", "5"}).ok);
+    CHECK(!parse({"replay", "c", "t", "--seed", "5"}).ok);
+    CHECK(!parse({"run", "c", "--hash"}).ok);
 }
 
 TEST(options_wav_needs_headless) {

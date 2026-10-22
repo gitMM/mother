@@ -10,11 +10,11 @@
 
 namespace mother {
 
-namespace {
-
 void not_in_draw(lua_State* L, const char* fn) {
     if (CartVM::of(L).drawing()) luaL_error(L, "%s() can't be called from cart.draw()", fn);
 }
+
+namespace {
 
 int opt_voice(lua_State* L, int idx, const char* fn) {
     if (lua_isnoneornil(L, idx)) return -1;

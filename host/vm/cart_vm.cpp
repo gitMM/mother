@@ -8,6 +8,7 @@
 #include "lua.h"
 #include "lualib.h"
 
+#include "runtime/hash.h"
 #include "vm/api.h"
 
 namespace mother {
@@ -45,8 +46,10 @@ CartVM& CartVM::of(lua_State* L) {
     return *static_cast<CartVM*>(lua_callbacks(L)->userdata);
 }
 
-bool CartVM::open(CartSource source) {
+bool CartVM::open(CartSource source, uint64_t seed) {
     source_ = std::move(source);
+    source_.map.rehash();
+    rng_ = Rng(seed);
     L_ = new_sandbox_state(heap_);
     if (!L_) {
         fail("could not create the Luau state");
@@ -61,6 +64,7 @@ bool CartVM::open(CartSource source) {
     open_map_api(L_);
     open_input_api(L_);
     open_audio_api(L_);
+    open_math_api(L_);
     open_host_api(L_);
     luaL_sandbox(L_);  // freezes every library table, the API and the globals
 
@@ -101,7 +105,26 @@ void CartVM::update(const PadState& pad, uint64_t tick) {
     call("update");
     in_update_ = false;
     if (!budget_logged_ && std::chrono::steady_clock::now() - tick_start_ > kTickBudget) report_budget();
-    if (status_.outcome != Outcome::Error) sequencer_.tick(audio_);
+    if (status_.outcome == Outcome::Error) return;
+    sequencer_.tick(audio_);
+    update_hash();
+}
+
+void CartVM::update_hash() {
+    if (!call("hash", 1)) return;
+    if (lua_type(L_, -1) != LUA_TNUMBER) {
+        lua_pop(L_, 1);
+        fail("cart.hash() must return a number");
+        return;
+    }
+    const double cart_value = lua_tonumber(L_, -1);
+    lua_pop(L_, 1);
+    Fnv64 h;
+    h.u64(ticks_);
+    for (uint32_t word : rng_.state()) h.u32(word);
+    h.u64(source_.map.hash);
+    h.number(cart_value);
+    state_hash_ = h.value();
 }
 
 void CartVM::take_audio(TickAudio& out) {
@@ -182,18 +205,19 @@ void CartVM::report_budget() {
                  int(kTickBudget.count()));
 }
 
-bool CartVM::call(const char* fn) {
+bool CartVM::call(const char* fn, int nresults) {
     lua_getglobal(L_, "cart");
     lua_getfield(L_, -1, fn);
     lua_remove(L_, -2);
-    return protected_call(0);
+    return protected_call(0, nresults);
 }
 
-bool CartVM::protected_call(int nargs) {
+// Calls the function below the top nargs values; on success leaves its nresults results.
+bool CartVM::protected_call(int nargs, int nresults) {
     const int func = lua_gettop(L_) - nargs;
     lua_pushcfunction(L_, traceback, "traceback");
     lua_insert(L_, func);
-    const int status = lua_pcall(L_, nargs, 0, func);
+    const int status = lua_pcall(L_, nargs, nresults, func);
     if (status != LUA_OK) {
         const char* message = lua_tostring(L_, -1);
         std::string text = message ? message : "unknown error";
@@ -202,7 +226,7 @@ bool CartVM::protected_call(int nargs) {
         fail(std::move(text));
         return false;
     }
-    lua_pop(L_, 1);  // handler
+    lua_remove(L_, func);  // handler
     return true;
 }
 

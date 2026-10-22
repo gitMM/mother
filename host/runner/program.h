@@ -31,6 +31,8 @@ struct RunResult {
     const char* result;       // result_name(), or "error" when the runner itself failed
     uint64_t ticks;           // ticks run
     uint64_t audio_hash = 0;  // headless only: FNV-1a 64 of every rendered sample
+    uint64_t state_hash = 0;  // after the last tick
+    int budget_errors = 0;
 };
 
 // What the host loop drives: a cart VM, or the built-in test pattern when no cart is given.
@@ -49,6 +51,9 @@ struct Program {
         return none;
     }
     virtual void take_audio(TickAudio& out) { out.clear(); }
+    // The state hash after the latest update, and how many ticks ran over the CPU budget.
+    virtual uint64_t state_hash() const { return 0; }
+    virtual int budget_errors() const { return 0; }
 };
 
 }  // namespace mother

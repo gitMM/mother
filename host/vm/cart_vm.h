@@ -8,6 +8,7 @@
 
 #include "audio/sequencer.h"
 #include "gfx/draw.h"
+#include "runtime/rng.h"
 #include "runner/program.h"
 #include "vm/cart_source.h"
 #include "vm/sandbox.h"
@@ -27,16 +28,21 @@ public:
     CartVM(const CartVM&) = delete;
     CartVM& operator=(const CartVM&) = delete;
 
-    // Runs main.luau, checks that it defined cart.init, cart.update, cart.draw and cart.hash as
-    // functions, then calls cart.init. On failure status() holds the error and it returns false.
-    bool open(CartSource source);
+    // Seeds the RNG, runs main.luau, checks that it defined cart.init, cart.update, cart.draw and
+    // cart.hash as functions, then calls cart.init. On failure status() holds the error and it
+    // returns false.
+    bool open(CartSource source, uint64_t seed = 0);
 
+    // One tick: cart.update, then the audio sequencer, then the state hash.
     void update(const PadState& pad, uint64_t tick) override;
     void draw(Framebuffer& fb) override;
     const Status& status() const override { return status_; }
     const AudioSetup& audio_setup() const override { return source_.tracker.setup; }
     void take_audio(TickAudio& out) override;
-    int budget_errors() const { return budget_errors_; }
+    // FNV-1a 64 over the tick count, the RNG state, the tilemap hash and cart.hash()'s value
+    // (and the MOTHERLIB world from M5).
+    uint64_t state_hash() const override { return state_hash_; }
+    int budget_errors() const override { return budget_errors_; }
 
     // For the API bindings.
     static CartVM& of(lua_State* L);
@@ -47,6 +53,7 @@ public:
     const Ramps& ramps() const { return source_.art.ramps; }
     TrackerData& tracker() { return source_.tracker; }
     Sequencer& sequencer() { return sequencer_; }
+    Rng& rng() { return rng_; }
     uint64_t ticks() const { return ticks_; }  // ticks started; 0 during cart.init
     void finish(Outcome outcome);
     void log(const std::string& line);
@@ -56,8 +63,9 @@ public:
 
 private:
     void run_module(lua_State* L, const std::string& name);  // pushes its first result
-    bool call(const char* fn);
-    bool protected_call(int nargs);
+    bool call(const char* fn, int nresults = 0);
+    bool protected_call(int nargs, int nresults = 0);
+    void update_hash();
     void fail(std::string message);
     void report_budget();
 
@@ -67,6 +75,8 @@ private:
     CartSource source_;
     Sequencer sequencer_{source_.tracker};
     TickAudio audio_;  // this tick's audio commands
+    Rng rng_;
+    uint64_t state_hash_ = 0;
     Painter painter_;
     PadState pad_;
     uint64_t ticks_ = 0;

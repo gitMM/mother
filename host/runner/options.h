@@ -8,12 +8,21 @@ namespace mother {
 
 extern const char* const kUsage;
 
+enum class InputKind { Live, Fuzz, Trace };  // Live: keyboard in a window, neutral headless
+
 struct Options {
-    std::string command;  // "run"
-    std::string cart;     // empty: the built-in palette test pattern
+    std::string command;  // run | record | replay
+    std::string cart;     // run: empty for the built-in palette test pattern
+    std::string trace;    // record: the trace to write; replay: the trace to check
     bool headless = false;
-    int64_t ticks = -1;   // stop after this many ticks; -1 = until the window closes
+    int64_t ticks = -1;   // stop after this many ticks; -1 = no limit
+    bool has_seed = false;
+    uint64_t seed = 0;
+    InputKind input = InputKind::Live;
+    uint64_t fuzz_seed = 0;
+    std::string input_trace;
     std::string wav;      // headless: also write the rendered audio here
+    bool print_hashes = false;  // replay --hash
 };
 
 struct ParseResult {
