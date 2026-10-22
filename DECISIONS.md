@@ -121,3 +121,58 @@ One line per decision: date, decision, reason.
 - 2026-10-22 · `lib/archetypes/dummy.luau` is a configurable body (collider, layer, damage, tier, constant velocity, bounce, racer laps) for MOTHERLIB's tests and M8's axis tests · M5 has no game archetypes, and section 9 calls for "other-faction dummies".
 - 2026-10-22 · `damage.tile` (for archetypes) breaks a damageable tile (flag bit 1) on layer 0 to tile 0 unless it is critical (bit 2); MOTHERLIB never overwrites critical tiles, while a cart's own `mset` is unrestricted · the cart owns its map.
 - 2026-10-22 · MOTHERLIB tests are small carts in the unit-test binary (`tests/world_cart.h`), with checks written in Luau; `tests/carts/world` is a smoke cart with a stored trace and a 10-minute fuzz run in CTest · the world is Luau, so its tests are too.
+
+## M6
+
+- 2026-10-22 · An archetype's `requires` now names all six axes, each a list of accepted values or `axes.ANY` · the brief says to declare requirements "on each [env] axis".
+- 2026-10-22 · Art and sound are params. An archetype lists its sprite params with their block size and frame count (`sprites`) and its sfx params (`sounds`). Sprite 0 draws a box in the faction's colour, and sfx −1 is silent, so tile 0 of a cart's sheets stays empty. Carts pass their own tiles and sfx in spawns and the same values in `[[exports]]` · "carry its own sprite and sfx references"; the import harness (M8) copies exactly the named tiles and sfx.
+- 2026-10-22 · Archetype sounds alternate between voices 5 and 6; the carts' music uses channels 1–4 · M3's automatic voice is the lowest free one, voice 1, which would cut the music's lead.
+- 2026-10-22 · Core additions: an `on_leave(e, reason)` hook (death, despawn or remove); `on_block` receives the blocking entity; `static` bodies never move; a `reflector` flag; and a `ghost` state (out of play: no contacts, blocking, queries or bounds), used by a ball waiting to be served · needed by brick drops, ball re-serves and paddles.
+- 2026-10-22 · Entities that MOTHERLIB spawns itself (shots, drops, re-served balls) go through `spawn.child`: they must suit `[env]` like any spawn, and they are imported when their parent is · imported things stay imported (M8).
+- 2026-10-22 · A self-propelled object keeps the velocity it wants in its archetype state and reapplies it every update, so the velocity survives a stun or knockback; reflectors and bounces change that wanted velocity · statuses stay honoured without losing momentum for good.
+- 2026-10-22 · Equipment is an entity held by the avatar. Its params:
+  - `button`: a, b, l or r when the cart binds it; x for the import system;
+  - `ticks`: how long it stays held, 0 for good;
+  - `loose`: it starts as a pickup drifting down at `drop` px/tick, taken by touching the avatar.
+
+  Taking a second copy renews the held one. Equipment can't act while its holder is stunned or knocked back. MOTHERLIB reads X and Y through a private `host.btn` and `host.btnp` · native pickups are bound by the cart to A, B, L or R, and imports to X, as the brief says.
+- 2026-10-22 · A `shot` archetype (not exported) is the projectile that firing archetypes spawn. It flies straight, is spent on its first hit on another faction or on anything solid (hurting a solid it hits), and expires after `life` ticks · the brief's firing archetypes need an entity for their shots, and the table has no projectile.
+- 2026-10-22 · Melee and blasts:
+  - a swing (sword, skeleton) hits every damageable entity of another faction whose centre lies inside the arc and within reach plus both half sizes;
+  - a blast (bomb) hits every damageable entity whose collider comes within the radius, any faction, and every layer-0 tile whose centre does;
+  - whatever a swing or blast hits is also knocked back for 6 ticks.
+
+  The brief gives arcs, reaches and radii but no hit test.
+- 2026-10-22 · Reflection: an object or projectile moving into a reflector leaves along the reflector's facing at the same speed, up to 60° off depending on where it hit across the face, and the reflector's faction takes ownership. A ball bounces off other player-faction bodies by reversing on the axis where it is furthest from the body's centre · "angle off the paddle depends on hit position".
+- 2026-10-22 · Chasing AI walks straight at its target and slides along walls when blocked, turning back at corners · straight-line skeletons stuck fast on KNIGHTFALL's crates and pillars.
+- 2026-10-22 · Numbers the brief leaves open:
+  - knight: walks 1 px/tick; dodge moves at fast speed;
+  - skeleton: 0.5 px/tick, 8 px reach, 20-tick wind-up, 60-tick cooldown;
+  - paddle avatar: 3 px/tick;
+  - sword: 20-tick cooldown;
+  - ball: served heading up within 30° of vertical, from just above the avatar (or where it was first spawned, with no avatar).
+
+  These are the brief's speed tiers, picked so the games play fairly.
+- 2026-10-22 · Requirements:
+  - knight: gravity none, avatar 8dir;
+  - paddle_avatar: avatar up;
+  - skeleton: ground surface and spawn points;
+  - bomb: deployable;
+  - sword, laser, paddle: equipment, which needs an avatar;
+  - ball, brick and shot: accept everything.
+
+  Matches the expected matrix in section 9; the ball's "bounds" requirement reads as "works under every bounds value".
+- 2026-10-22 · KNIGHTFALL:
+  - a 40×22 arena: walls and pillars are solid and critical, crates solid and damageable;
+  - 4 edge spawn points; each wave's spawner releases a skeleton every 40 ticks;
+  - A or Start leaves the title; the result shows for 4 s, then the cart finishes.
+
+  BREAKOUT:
+  - side and top walls in the map, open at the bottom over the kill edge;
+  - each brick drops a laser with chance 0.1 (`rnd`);
+  - the first serve comes 60 ticks after start; 3 balls.
+
+  Native spawns repeat the `[[exports]]` params · the brief's layouts, with title and result screens.
+- 2026-10-22 · Cart art, maps and audio (`sprites.spr`, `map.map`, `audio.trk`) were written once by throwaway Python scripts and are committed as the hand-editable source · as with the M2 and M3 fixtures.
+- 2026-10-22 · "Runs 10 minutes under fuzz" means up to 36,000 ticks with no error or budget overrun; a cart that wins or loses sooner has finished. CTest runs 3 seeds per cart, twice each, and replays a stored trace per cart · random input loses both carts within a few minutes.
+- 2026-10-22 · "Winnable and losable" is shown by bots in the unit tests. A bot is a Luau function that runs inside the cart's VM between ticks, reads the world and returns the next pad (`tests/bot.h`, through a new `CartVM::state()`); it only reads, so it plays as a player would · a real win needs real input; recorded play wasn't possible here.

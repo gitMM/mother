@@ -22,16 +22,31 @@ constexpr ButtonName kButtons[] = {
     {"start", Button::Start},
 };
 
-Button arg_button(lua_State* L, const char* fn) {
+// reserved: whether X and Y may be read (MOTHERLIB's import system only).
+Button arg_button(lua_State* L, const char* fn, bool reserved = false) {
     const char* name = luaL_checkstring(L, 1);
     for (const ButtonName& b : kButtons) {
         if (std::strcmp(name, b.name) == 0) return b.button;
     }
-    if (std::strcmp(name, "x") == 0 || std::strcmp(name, "y") == 0) {
-        luaL_error(L, "%s(\"%s\"): X and Y are reserved for the import system", fn, name);
-    }
+    const bool x = std::strcmp(name, "x") == 0, y = std::strcmp(name, "y") == 0;
+    if (reserved && (x || y)) return x ? Button::X : Button::Y;
+    if (x || y) luaL_error(L, "%s(\"%s\"): X and Y are reserved for the import system", fn, name);
     luaL_error(L, "%s(\"%s\"): unknown button; use left, right, up, down, a, b, l, r or start", fn, name);
 }
+
+}  // namespace
+
+int lib_btn(lua_State* L) {
+    lua_pushboolean(L, CartVM::of(L).pad().btn(arg_button(L, "host.btn", true)));
+    return 1;
+}
+
+int lib_btnp(lua_State* L) {
+    lua_pushboolean(L, CartVM::of(L).pad().btnp(arg_button(L, "host.btnp", true)));
+    return 1;
+}
+
+namespace {
 
 int l_btn(lua_State* L) {
     lua_pushboolean(L, CartVM::of(L).pad().btn(arg_button(L, "btn")));

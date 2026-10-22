@@ -45,6 +45,9 @@ public:
     uint64_t state_hash() const override { return state_hash_; }
     int budget_errors() const override { return budget_errors_; }
 
+    // The cart's Luau state, for tests that read the world between ticks (e.g. input bots).
+    lua_State* state() const { return L_; }
+
     // For the API bindings.
     static CartVM& of(lua_State* L);
     Painter& painter_in_draw(lua_State* L, const char* fn);  // errors outside cart.draw()

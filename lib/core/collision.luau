@@ -94,7 +94,7 @@ function collision.begin()
     local list = S.list
     for i = 1, #list do
         local e = list[i]
-        if e.solid and entity.live(e) then
+        if e.solid and entity.live(e) and not e.ghost then
             table.insert(solids, e)
         end
     end
@@ -110,7 +110,7 @@ function collision.block(e, nx, ny, hit)
     end
     local on_block = e.arch.on_block
     if on_block ~= nil then
-        on_block(e, nx, ny)
+        on_block(e, nx, ny, if type(hit) == "table" then hit else nil)
     elseif nx ~= 0 then
         e.vx = 0
     else
@@ -192,7 +192,7 @@ local function resolve(a, b)
     if a.id > b.id then
         a, b = b, a
     end
-    if not (entity.live(a) and entity.live(b)) then
+    if not (entity.live(a) and entity.live(b)) or a.ghost or b.ghost then
         return
     end
     -- Both sides hit at once, even if the first hit kills.
@@ -235,7 +235,7 @@ function collision.contacts(n)
     local order = {}
     for i = 1, n do
         local e = list[i]
-        if entity.live(e) then
+        if entity.live(e) and not e.ghost then
             e.bx0, e.bx1 = math.min(e.sx, e.x) - e.hw, math.max(e.sx, e.x) + e.hw
             e.by0, e.by1 = math.min(e.sy, e.y) - e.hh, math.max(e.sy, e.y) + e.hh
             table.insert(order, e)

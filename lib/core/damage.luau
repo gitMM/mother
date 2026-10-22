@@ -41,6 +41,10 @@ function damage.kill(e, src)
     end
     e.dead = true
     events.emit("death", e.id, entity.view(e), src and src.id)
+    local hook = e.arch.on_leave
+    if hook ~= nil then
+        hook(e, "death")
+    end
 end
 
 -- Tile (tx, ty) on layer 0 takes a hit: a damageable tile (flag bit 1, HP 1) breaks, leaving an

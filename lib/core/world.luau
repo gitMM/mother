@@ -66,10 +66,7 @@ end
 -- Removes an entity silently (no death event). Unknown or gone ids are ignored.
 function world.remove(self, id)
     method(self, "remove", true)
-    local e = find(id)
-    if e ~= nil then
-        e.gone = true
-    end
+    entity.remove(find(id), "remove")
 end
 
 function world.get(self, id)
@@ -90,7 +87,7 @@ function world.query(self, x, y, w, h, filter)
     local list = S.list
     for i = 1, #list do
         local e = list[i]
-        if live(e) and entity.overlaps(e, x, y, x + w, y + h) and entity.matches(e, filter) then
+        if live(e) and not e.ghost and entity.overlaps(e, x, y, x + w, y + h) and entity.matches(e, filter) then
             table.insert(ids, e.id)
         end
     end
@@ -107,7 +104,7 @@ function world.nearest(self, x, y, filter)
     local list = S.list
     for i = 1, #list do
         local e = list[i]
-        if live(e) and entity.matches(e, filter) then
+        if live(e) and not e.ghost and entity.matches(e, filter) then
             local dx, dy = e.x - x, e.y - y
             local d = dx * dx + dy * dy
             if d < best_d then

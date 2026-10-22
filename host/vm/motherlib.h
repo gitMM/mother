@@ -14,7 +14,8 @@ namespace mother {
 // MOTHERLIB (brief sections 2 and 6): the Luau library in lib/, compiled into the binary and
 // loaded into every cart VM. Its modules run in their own global tables, which read through to
 // two private names and then the cart API: use("core/x") loads another MOTHERLIB module, and
-// `host` holds the few host functions the library needs. Carts reach only the `world` table.
+// `host` holds the few host functions the library needs (modules, map_size, in_draw, and btn and
+// btnp that also read X and Y). Carts reach only the `world` table.
 class Motherlib {
 public:
     // Loads lib/core/world.luau, creates the world from the checked manifest and sets the

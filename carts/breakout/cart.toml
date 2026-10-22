@@ -1,0 +1,52 @@
+[cart]
+id = "breakout"
+title = "BREAKOUT"
+family = "action"
+
+[env]
+gravity = "none"
+surface = "none"
+scroll = "none"
+avatar = "up"
+spawn = "world"
+deploy = true
+bounds = { left = "solid", right = "solid", top = "solid", bottom = "kill" }
+
+[objective]
+type = "kill_all"
+
+[avatar]
+archetype = "paddle_avatar"
+damage = "stun"
+hp = 1
+x = 160
+y = 164
+params = { sprite = 1, sfx_reflect = 0 }
+
+# Under the top wall, above the bricks.
+[[spawn_points]]
+x = 40
+y = 30
+
+[[spawn_points]]
+x = 160
+y = 30
+
+[[spawn_points]]
+x = 280
+y = 30
+
+[[exports]]
+id = "ball"
+archetype = "ball"
+params = { sprite = 5, sfx_bounce = 2 }
+
+[[exports]]
+id = "paddle"
+archetype = "paddle"
+params = { sprite = 64, sprite_v = 96, sfx_reflect = 0 }
+
+[[exports]]
+id = "laser"
+archetype = "laser"
+params = { sprite = 44, shot_sprite = 46, sfx_fire = 4, sfx_take = 5 }

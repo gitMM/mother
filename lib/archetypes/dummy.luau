@@ -2,6 +2,7 @@
 -- ("a few other-faction dummies", brief section 9). Its params set its collider, layer, damage
 -- response and contact tier; it steers at a constant (vx, vy) and, when it falls, leaves vy to
 -- gravity. It accepts every [env] value.
+local axes = use("core/axes")
 local motion = use("core/motion")
 local objective = use("core/objective")
 
@@ -15,7 +16,14 @@ return {
     damage = "hp",
     hp = 1,
     tier = 0,
-    requires = {},
+    requires = {
+        gravity = axes.ANY,
+        surface = axes.ANY,
+        scroll = axes.ANY,
+        avatar = axes.ANY,
+        spawn = axes.ANY,
+        deploy = axes.ANY,
+    },
     params = {
         w = 8,
         h = 8,

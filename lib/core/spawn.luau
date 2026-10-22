@@ -28,6 +28,22 @@ function spawn.entity(name, params, x, y, faction)
     return e
 end
 
+-- An entity spawned by another (a shot, a dropped pickup, a re-served ball). It must suit the
+-- cart's [env] like any spawn, and it is imported when its parent is.
+function spawn.child(parent, name, params, x, y, faction)
+    local def = archetypes.get(name)
+    if def == nil then
+        error(`{parent.name} spawns an unknown archetype {name}`, 0)
+    end
+    local why = archetypes.check(def, S.env)
+    if why ~= nil then
+        error(`{parent.name} spawns {name}, which {why}`, 0)
+    end
+    local e = spawn.entity(name, archetypes.params(name, def, params, 0), x, y, faction)
+    e.imported = parent.imported
+    return e
+end
+
 function spawn.point(i)
     local p = S.spawn_points[i]
     if S.env.spawn == "camera" then

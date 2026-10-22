@@ -3,7 +3,8 @@
 --   slip       no steering: update() runs, but the velocity it had is kept
 --   knockback  an impulse: the body moves at run speed away from where its last hit came
 --              from (or backwards along its facing), and doesn't act
--- Timers count steps; applying a status never shortens one already running.
+-- Timers count steps; applying a status never shortens one already running. A static body never
+-- moves at all.
 local units = use("core/units")
 local motion = use("core/motion")
 
@@ -50,6 +51,9 @@ function status.behave(e)
         if e.slip > 0 then
             e.vx, e.vy = vx, vy
         end
+    end
+    if e.arch.static then
+        e.vx, e.vy = 0, 0
     end
 end
 

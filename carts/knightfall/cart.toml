@@ -1,0 +1,56 @@
+[cart]
+id = "knightfall"
+title = "KNIGHTFALL"
+family = "action"
+
+[env]
+gravity = "none"
+surface = "ground"
+scroll = "none"
+avatar = "8dir"
+spawn = "world"
+deploy = true
+bounds = { left = "solid", right = "solid", top = "solid", bottom = "solid" }
+
+[objective]
+type = "kill_all"
+
+[avatar]
+archetype = "knight"
+damage = "hp"
+hp = 30
+x = 160
+y = 88
+params = { sprite = 2, sfx_dodge = 4 }
+
+# The arena's edges, between the walls and the crates.
+[[spawn_points]]
+x = 20
+y = 88
+
+[[spawn_points]]
+x = 160
+y = 20
+
+[[spawn_points]]
+x = 300
+y = 88
+
+[[spawn_points]]
+x = 160
+y = 156
+
+[[exports]]
+id = "skeleton"
+archetype = "skeleton"
+params = { sprite = 8, sfx_swing = 0, sfx_die = 2 }
+
+[[exports]]
+id = "bomb"
+archetype = "bomb"
+params = { sprite = 18, sprite_blast = 20, sfx_blast = 3 }
+
+[[exports]]
+id = "sword"
+archetype = "sword"
+params = { tier = 3, arc = 90, reach = 12, sprite = 14, sprite_v = 16, sfx_swing = 0 }

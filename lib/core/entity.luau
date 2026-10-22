@@ -58,6 +58,7 @@ function entity.new(id, name, def, params, x, y, faction, tick)
         down = false,
 
         entered = false, -- has overlapped the bounds, so the edges apply to it
+        ghost = false, -- out of play for now: no contacts, blocking, queries or bounds
         dead = false,
         gone = false, -- removed without dying
         laps = 0,
@@ -67,6 +68,18 @@ end
 
 function entity.live(e)
     return e ~= nil and not e.dead and not e.gone
+end
+
+-- Takes a live entity out of the world without killing it; its archetype's on_leave(e, reason)
+-- hook runs.
+function entity.remove(e, reason)
+    if entity.live(e) then
+        e.gone = true
+        local hook = e.arch.on_leave
+        if hook ~= nil then
+            hook(e, reason)
+        end
+    end
 end
 
 -- After an archetype's init(), which may change these fields.

@@ -19,7 +19,9 @@ Use the `debug` preset for a debug build. The binary is `build/<preset>/bin/moth
 ## Run
 
 ```
-mother run tests/carts/world                       # a cart in a window, with sound
+mother run carts/knightfall                        # a cart in a window, with sound
+mother run carts/breakout
+mother run tests/carts/world
 mother run tests/carts/dice --headless --ticks 18000 --input fuzz:42 --seed 7
                                                    # no window or audio device; fuzzed input
 mother run tests/carts/song --headless --ticks 600 --wav song.wav   # also write the audio
@@ -31,8 +33,13 @@ mother run                                         # palette test pattern
 ```
 
 Each run ends with one line: `result=… ticks=… seed=… budget=… hash=…`, plus `audio=…` headless
-and `replay=ok` or `replay=mismatch …` for replays. `tests/traces/` holds one trace per test cart;
-CI replays them on Windows, macOS and Linux.
+and `replay=ok` or `replay=mismatch …` for replays. `tests/traces/` holds one trace per cart; CI
+replays them on Windows, macOS and Linux.
+
+## Carts
+
+- **KNIGHTFALL** (`carts/knightfall`): survive three waves of skeletons. A sword, B dodge, R bomb.
+- **BREAKOUT** (`carts/breakout`): clear 108 bricks with 3 balls. Some bricks drop a laser (A).
 
 A cart is a folder with `cart.toml` and `main.luau` (plus any other `*.luau` modules, loaded with
 `import("name")`). `main.luau` defines `cart.init`, `cart.update`, `cart.draw` and `cart.hash`.

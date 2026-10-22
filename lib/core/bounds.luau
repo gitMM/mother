@@ -65,7 +65,7 @@ local function leave(e, rule)
     if rule == "kill" then
         damage.kill(e, nil)
     else
-        e.gone = true
+        entity.remove(e, "despawn")
     end
 end
 
@@ -86,6 +86,9 @@ local function push(e, moving_out, nx, ny)
 end
 
 function bounds.apply(e)
+    if e.ghost then
+        return
+    end
     bounds.enter(e)
     if e.entered then
         local x0, y0, x1, y1 = bounds.rect()
@@ -126,7 +129,7 @@ function bounds.apply(e)
     if S.env.scroll ~= "none" and e ~= S.avatar and not objective.counts(e) then
         local cx, cy = S.cam_x, S.cam_y
         if e.x + e.hw < cx - W or e.x - e.hw > cx + 2 * W or e.y + e.hh < cy - H or e.y - e.hh > cy + 2 * H then
-            e.gone = true
+            entity.remove(e, "despawn")
         end
     end
 end

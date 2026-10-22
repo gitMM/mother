@@ -8,29 +8,27 @@
 --   damage       "hp" (dies at 0), "stun" (stunned per hit, never dies) or "none" (immune)
 --   hp           starting HP; 0 unless damage is "hp"
 --   tier         contact damage tier: 0 (none), 1, 3, 10 or 30
---   requires     { axis = { accepted values } } over gravity, surface, scroll, avatar, spawn and
---                deploy; an axis left out accepts every value
+--   requires     every [env] axis (core/axes.luau) mapped to a list of the values it accepts,
+--                or axes.ANY
 --   params       default parameters; world:spawn may override exactly these keys
 -- and optionally:
---   solid        blocks other entities' movement (default false)
---   hurts_owner  its contact damage also hits its own faction (default false)
---   racer        counts as a racer for a race objective (default false)
---   deployable   needs [env] deploy = true (default false)
---   init(e) update(e) draw(e) on_contact(e, other) on_block(e, nx, ny)
+--   sprites      { param = { w = tiles, h = tiles, frames = n } }: params holding a sprite (its
+--                first tile; 0 for none), with the block size it draws and how many frames lie
+--                side by side; the import harness copies exactly these tiles
+--   sounds       { param, ... }: params holding an sfx number (-1 for none)
+--   solid        blocks other entities' movement
+--   static       never moves, whatever its velocity or statuses
+--   reflector    sends objects and projectiles back (a ball doesn't bounce itself off it)
+--   hurts_owner  its contact damage also hits its own faction
+--   racer        counts as a racer for a race objective
+--   deployable   needs [env] deploy = true
+--   init(e) update(e) draw(e) on_contact(e, other) on_block(e, nx, ny, other)
+--   on_leave(e, reason)   reason: "death", "despawn" (an edge or the camera) or "remove"
 local check = use("core/check")
+local axes = use("core/axes")
 
 local archetypes = {}
 local defs = {}
-
-local AXES = { "gravity", "surface", "scroll", "avatar", "spawn", "deploy" }
-local AXIS_VALUES = {
-    gravity = { none = true, down = true },
-    surface = { none = true, ground = true },
-    scroll = { none = true, follow = true, auto = true },
-    avatar = { none = true, up = true, lr = true, ["8dir"] = true, heading = true },
-    spawn = { none = true, world = true, camera = true },
-    deploy = { [true] = true, [false] = true },
-}
 
 archetypes.CATEGORIES = table.freeze({ body = true, creature = true, object = true, equipment = true })
 archetypes.LAYERS = table.freeze({ ground = true, air = true, object = true, projectile = true })
@@ -39,15 +37,56 @@ archetypes.TIERS = table.freeze({ [0] = true, [1] = true, [3] = true, [10] = tru
 local SIZES = { S = true, M = true, L = true }
 local FIELDS = {
     category = true, layer = true, size = true, w = true, h = true, kinematic = true, damage = true,
-    hp = true, tier = true, requires = true, params = true, solid = true, hurts_owner = true,
-    racer = true, deployable = true, init = true, update = true, draw = true, on_contact = true,
-    on_block = true,
+    hp = true, tier = true, requires = true, params = true, sprites = true, sounds = true,
+    solid = true, static = true, reflector = true, hurts_owner = true, racer = true,
+    deployable = true, init = true, update = true, draw = true, on_contact = true, on_block = true,
+    on_leave = true,
 }
-local HOOKS = { "init", "update", "draw", "on_contact", "on_block" }
-local FLAGS = { "solid", "hurts_owner", "racer", "deployable" }
+local HOOKS = { "init", "update", "draw", "on_contact", "on_block", "on_leave" }
+local FLAGS = { "solid", "static", "reflector", "hurts_owner", "racer", "deployable" }
+local NO_ART = table.freeze({})
 
 function archetypes.collider(v)
     return type(v) == "number" and v >= 2 and v <= 32 and v % 2 == 0
+end
+
+local function check_requires(d, where, bad)
+    check.table(d.requires, `{where} requires`, 0)
+    check.keys(d.requires, axes.VALUES, `{where} requires`, 0)
+    for _, axis in axes.NAMES do
+        local accepted = d.requires[axis]
+        if accepted == nil then
+            bad(`requires.{axis} is missing; list the accepted values or use axes.ANY`)
+        elseif accepted ~= axes.ANY then
+            if type(accepted) ~= "table" or #accepted == 0 then
+                bad(`requires.{axis} must be a list of accepted values or axes.ANY`)
+            end
+            for _, v in accepted do
+                check.one_of(v, axes.VALUES[axis], `{where} requires.{axis}`, 0)
+            end
+            table.freeze(accepted)
+        end
+    end
+end
+
+local function check_art(d, bad)
+    for name, block in d.sprites or NO_ART do
+        if type(d.params[name]) ~= "number" then
+            bad(`sprites.{name} must name a number param`)
+        end
+        local ok = type(block) == "table" and check.finite(block.w) and check.finite(block.h)
+            and check.finite(block.frames) and block.w >= 1 and block.w <= 4 and block.h >= 1
+            and block.h <= 4 and block.frames >= 1
+        if not ok then
+            bad(`sprites.{name} must be \{ w = 1-4, h = 1-4, frames = 1 or more }`)
+        end
+        table.freeze(block)
+    end
+    for _, name in d.sounds or NO_ART do
+        if type(d.params[name]) ~= "number" then
+            bad(`sounds: {name} must name a number param`)
+        end
+    end
 end
 
 local function validate(name, d)
@@ -88,22 +127,16 @@ local function validate(name, d)
             bad("params must map names to values")
         end
     end
-    check.table(d.requires, `{where} requires`, 0)
-    check.keys(d.requires, AXIS_VALUES, `{where} requires`, 0)
-    for _, axis in AXES do
-        local accepted = d.requires[axis]
-        if accepted ~= nil then
-            if type(accepted) ~= "table" or #accepted == 0 then
-                bad(`requires.{axis} must be a list of accepted values`)
-            end
-            for _, v in accepted do
-                check.one_of(v, AXIS_VALUES[axis], `{where} requires.{axis}`, 0)
-            end
-            table.freeze(accepted)
-        end
-    end
+    check_requires(d, where, bad)
+    check_art(d, bad)
     table.freeze(d.params)
     table.freeze(d.requires)
+    if d.sprites then
+        table.freeze(d.sprites)
+    end
+    if d.sounds then
+        table.freeze(d.sounds)
+    end
     return table.freeze(d)
 end
 
@@ -124,9 +157,9 @@ end
 -- Why `def` can't run under `env`, as "needs surface=ground, host has none", or nil when it can.
 -- Category rules come on top of `requires`: equipment needs an avatar, deployables need deploy.
 function archetypes.check(def, env)
-    for _, axis in AXES do
+    for _, axis in axes.NAMES do
         local accepted = def.requires[axis]
-        if accepted ~= nil and table.find(accepted, env[axis]) == nil then
+        if accepted ~= axes.ANY and table.find(accepted, env[axis]) == nil then
             local names = {}
             for _, v in accepted do
                 table.insert(names, tostring(v))

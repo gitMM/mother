@@ -53,6 +53,8 @@ constexpr luaL_Reg kHost[] = {
     {"modules", l_modules},
     {"map_size", l_map_size},
     {"in_draw", l_in_draw},
+    {"btn", lib_btn},
+    {"btnp", lib_btnp},
 };
 
 // TOML values as Luau values: integers and floats become numbers, arrays 1-based tables.

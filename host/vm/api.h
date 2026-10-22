@@ -18,6 +18,10 @@ void open_audio_api(lua_State* L);   // sfx music stop beat song_get song_set
 void open_math_api(lua_State* L);    // the m table, rnd rndi
 void open_host_api(lua_State* L);    // mother.finish mother.log tick import
 
+// btn and btnp for MOTHERLIB's `host` table: they also read X and Y, which the import system owns.
+int lib_btn(lua_State* L);
+int lib_btnp(lua_State* L);
+
 // The cart's painter for a drawing function; raises a Luau error outside cart.draw().
 Painter& draw_painter(lua_State* L, const char* fn);
 // Raises a Luau error inside cart.draw(), for calls that change simulation state.
