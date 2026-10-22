@@ -78,6 +78,20 @@ TEST(pad_directions_have_btnp) {
     CHECK(!build_pad(raw, p1).btnp(Button::Up));
 }
 
+TEST(pad_copies_the_pointer) {
+    RawInput raw;
+    raw.pointer = true;
+    raw.pointer_x = 12;
+    raw.pointer_y = 34;
+    raw.pointer_down = true;
+    const PadState p = build_pad(raw, PadState{});
+    CHECK(p.pointer && p.pointer_down);
+    CHECK_EQ(p.pointer_x, 12);
+    CHECK_EQ(p.pointer_y, 34);
+    raw.pointer = false;
+    CHECK(!build_pad(raw, p).pointer_down);  // no pointer, no press
+}
+
 TEST(pad_every_face_button_maps_to_its_bit) {
     for (int i = 0; i < kFaceButtonCount; ++i) {
         RawInput raw;

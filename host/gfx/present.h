@@ -15,6 +15,9 @@ struct Viewport {
 
 Viewport fit_viewport(int out_w, int out_h);
 
+// Maps a point in output pixels to a screen pixel. False when it falls outside the image.
+bool output_to_screen(const Viewport& vp, float ox, float oy, int& sx, int& sy);
+
 // Converts indexed pixels to 0xAARRGGBB through the palette. out holds kScreenW * kScreenH.
 void to_argb(const Framebuffer& fb, uint32_t* out);
 

@@ -1,0 +1,73 @@
+#pragma once
+
+#include <chrono>
+#include <cstdint>
+#include <map>
+#include <set>
+#include <string>
+
+#include "gfx/draw.h"
+#include "runner/program.h"
+#include "vm/cart_source.h"
+#include "vm/sandbox.h"
+
+struct lua_State;
+
+namespace mother {
+
+// One cart running in its own sandboxed Luau VM (brief section 4). Runs the cart's lifecycle
+// functions and holds the state the cart API bindings read and write.
+class CartVM : public Program {
+public:
+    static constexpr std::chrono::milliseconds kTickBudget{8};
+
+    CartVM() = default;
+    ~CartVM() override;
+    CartVM(const CartVM&) = delete;
+    CartVM& operator=(const CartVM&) = delete;
+
+    // Runs main.luau, checks that it defined cart.init, cart.update, cart.draw and cart.hash as
+    // functions, then calls cart.init. On failure status() holds the error and it returns false.
+    bool open(CartSource source);
+
+    void update(const PadState& pad, uint64_t tick) override;
+    void draw(Framebuffer& fb) override;
+    const Status& status() const override { return status_; }
+    int budget_errors() const { return budget_errors_; }
+
+    // For the API bindings.
+    static CartVM& of(lua_State* L);
+    Painter& painter_in_draw(lua_State* L, const char* fn);  // errors outside cart.draw()
+    const PadState& pad() const { return pad_; }
+    uint64_t ticks() const { return ticks_; }  // ticks started; 0 during cart.init
+    void finish(Outcome outcome);
+    void log(const std::string& line);
+    int import_module(lua_State* L, const char* name);  // pushes the module's value
+    void run_main(lua_State* L);                         // runs main.luau, from open()
+    void check_budget();                                 // from the interrupt callback
+
+private:
+    void run_module(lua_State* L, const std::string& name);  // pushes its first result
+    bool call(const char* fn);
+    bool protected_call(int nargs);
+    void fail(std::string message);
+    void report_budget();
+
+    Heap heap_;
+    lua_State* L_ = nullptr;
+    int api_ref_ = 0;
+    CartSource source_;
+    Painter painter_;
+    PadState pad_;
+    uint64_t ticks_ = 0;
+    Status status_;
+    std::map<std::string, int> imported_;  // module name -> registry ref of its value
+    std::set<std::string> importing_;      // modules being loaded, for cycle errors
+    std::chrono::steady_clock::time_point tick_start_;
+    bool in_update_ = false;
+    bool budget_logged_ = false;
+    uint32_t interrupts_ = 0;
+    int budget_errors_ = 0;
+};
+
+}  // namespace mother

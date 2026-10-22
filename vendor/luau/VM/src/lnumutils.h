@@ -5,11 +5,13 @@
 #include <math.h>
 #include <cstdint>
 
+#include "Luau/MotherPow.h"
+
 #define luai_numadd(a, b) ((a) + (b))
 #define luai_numsub(a, b) ((a) - (b))
 #define luai_nummul(a, b) ((a) * (b))
 #define luai_numdiv(a, b) ((a) / (b))
-#define luai_numpow(a, b) (pow(a, b))
+#define luai_numpow(a, b) (luau_mother_pow(a, b)) // MOTHER patch: was pow(a, b)
 #define luai_numunm(a) (-(a))
 #define luai_numisnan(a) ((a) != (a))
 #define luai_numeq(a, b) ((a) == (b))

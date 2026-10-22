@@ -1,0 +1,224 @@
+#include <filesystem>
+#include <memory>
+#include <string>
+
+#include "temp_cart.h"
+#include "test.h"
+#include "vm/cart_vm.h"
+
+using namespace mother;
+
+namespace {
+
+std::unique_ptr<CartVM> open_cart(const std::filesystem::path& dir) {
+    CartSource src;
+    std::string error;
+    if (!load_cart_source(dir, src, error)) {
+        std::printf("  load failed: %s\n", error.c_str());
+        return nullptr;
+    }
+    auto vm = std::make_unique<CartVM>();
+    vm->open(std::move(src));
+    return vm;
+}
+
+std::unique_ptr<CartVM> open_main(const std::string& name, const std::string& main_luau,
+                                  const TempCart::Files& extra = {}) {
+    TempCart::Files files = {{"cart.toml", kTestToml}, {"main.luau", main_luau}};
+    files.insert(files.end(), extra.begin(), extra.end());
+    TempCart cart(name, files);
+    return open_cart(cart.dir());
+}
+
+bool has(const std::string& text, const char* part) {
+    if (text.find(part) != std::string::npos) return true;
+    std::printf("  \"%s\" not found in: %s\n", part, text.c_str());
+    return false;
+}
+
+Outcome outcome(const CartVM& vm) {
+    return vm.status().outcome;
+}
+
+void tick(CartVM& vm, const RawInput& raw, PadState& pad, uint64_t t) {
+    pad = build_pad(raw, pad);
+    vm.update(pad, t);
+}
+
+}  // namespace
+
+TEST(cartvm_hello_draws_and_moves_with_input) {
+    auto vm = open_cart(std::filesystem::path(MOTHER_TEST_CARTS) / "hello");
+    CHECK(vm && outcome(*vm) == Outcome::Running);
+    if (!vm) return;
+    Framebuffer fb;
+    vm->draw(fb);
+    CHECK_EQ(fb.pget(160, 90), 22);  // the box at its start
+    CHECK_EQ(fb.pget(180, 90), 17);  // background
+    CHECK_EQ(fb.pget(40, 140), 12);  // filled circle
+
+    RawInput right;
+    right.right = true;
+    PadState pad;
+    for (uint64_t t = 0; t < 10; ++t) tick(*vm, right, pad, t);
+    vm->draw(fb);
+    CHECK_EQ(fb.pget(180, 90), 22);  // moved 2 px per tick
+    CHECK_EQ(fb.pget(160, 85), 17);
+    CHECK(outcome(*vm) == Outcome::Running);
+}
+
+TEST(cartvm_hello_reads_buttons_and_pointer) {
+    auto vm = open_cart(std::filesystem::path(MOTHER_TEST_CARTS) / "hello");
+    if (!vm) return;
+    RawInput raw;
+    raw.buttons[size_t(face_index(Button::A))] = true;
+    raw.pointer = true;
+    raw.pointer_x = 100;
+    raw.pointer_y = 50;
+    PadState pad;
+    tick(*vm, raw, pad, 0);
+    Framebuffer fb;
+    vm->draw(fb);
+    CHECK_EQ(fb.pget(160, 90), 9);   // flashing after A
+    CHECK_EQ(fb.pget(103, 50), 22);  // pointer ring, button up
+    raw.pointer_down = true;
+    tick(*vm, raw, pad, 1);
+    vm->draw(fb);
+    CHECK_EQ(fb.pget(103, 50), 9);   // pointer ring, button down
+}
+
+TEST(cartvm_sandbox_cart_wins) {
+    auto vm = open_cart(std::filesystem::path(MOTHER_TEST_CARTS) / "sandbox");
+    CHECK(vm && outcome(*vm) == Outcome::Running);
+    if (!vm) return;
+    vm->update(PadState{}, 0);
+    CHECK(outcome(*vm) == Outcome::Win);
+}
+
+TEST(cartvm_compile_errors_name_file_and_line) {
+    auto vm = open_main("syntax", "local x = 1\nfunction cart.init(\n");
+    CHECK(outcome(*vm) == Outcome::Error);
+    CHECK(has(vm->status().message, "main.luau:"));
+    auto bad_module = open_main("syntax_module", "local m = import(\"m\")\n" + lifecycle(""),
+                                {{"m.luau", "return 1 +\n"}});
+    CHECK(has(bad_module->status().message, "m.luau:"));
+}
+
+TEST(cartvm_runtime_errors_stop_the_cart) {
+    auto vm = open_main("runtime", lifecycle("", "if tick() == 3 then error(\"boom\") end"));
+    CHECK(outcome(*vm) == Outcome::Running);
+    for (uint64_t t = 0; t < 5; ++t) vm->update(PadState{}, t);
+    CHECK(outcome(*vm) == Outcome::Error);
+    CHECK(has(vm->status().message, "main.luau:2: boom"));
+    CHECK(has(vm->status().message, "stack traceback"));
+}
+
+TEST(cartvm_requires_every_lifecycle_function) {
+    auto vm = open_main("no_hash", "function cart.init() end\nfunction cart.update() end\n"
+                                   "function cart.draw() end\n");
+    CHECK(outcome(*vm) == Outcome::Error);
+    CHECK(has(vm->status().message, "cart.hash"));
+}
+
+TEST(cartvm_import_runs_each_module_once) {
+    auto vm = open_main("import_once",
+                        "local a, b = import(\"counter\"), import(\"counter\")\n" +
+                            lifecycle("mother.finish(if a == b and a.loads == 1 then \"win\" else \"lose\")"),
+                        {{"counter.luau", "local m = { loads = 0 }\nm.loads += 1\nreturn m\n"}});
+    CHECK(outcome(*vm) == Outcome::Win);
+}
+
+TEST(cartvm_import_cycles_are_errors) {
+    auto vm = open_main("import_cycle", "import(\"a\")\n" + lifecycle(""),
+                        {{"a.luau", "return import(\"b\")"}, {"b.luau", "return import(\"a\")"}});
+    CHECK(outcome(*vm) == Outcome::Error);
+    CHECK(has(vm->status().message, "import cycle"));
+}
+
+TEST(cartvm_modules_have_their_own_globals) {
+    auto vm = open_main("globals", "SHARED = 1\nlocal seen = import(\"m\")\n" +
+                                       lifecycle("mother.finish(if seen == nil then \"win\" else \"lose\")"),
+                        {{"m.luau", "return SHARED"}});
+    CHECK(outcome(*vm) == Outcome::Win);
+}
+
+TEST(cartvm_graphics_only_in_cart_draw) {
+    auto vm = open_main("draw_only", lifecycle("", "cls(0)"));
+    vm->update(PadState{}, 0);
+    CHECK(outcome(*vm) == Outcome::Error);
+    CHECK(has(vm->status().message, "cls() can only be called from cart.draw()"));
+}
+
+TEST(cartvm_draw_api_reaches_the_framebuffer) {
+    auto vm = open_main("draw_api", lifecycle("", "", R"(
+        cls(1)
+        camera(10, 0)
+        pset(15, 5, 8)
+        if pget(15, 5) ~= 8 then error("pget") end
+        camera()
+        pal(3, 4)
+        rectfill(0, 10, 2, 2, 3)
+        pal()
+        clip(50, 50, 10, 10)
+        rectfill(0, 0, 320, 180, 2)
+        clip()
+        line(0, 179, 3, 179, 5)
+        circfill(300, 20, 2, 6)
+    )"));
+    Framebuffer fb;
+    vm->draw(fb);
+    CHECK(outcome(*vm) == Outcome::Running);
+    CHECK_EQ(fb.pget(5, 5), 8);
+    CHECK_EQ(fb.pget(0, 10), 4);
+    CHECK_EQ(fb.pget(50, 50), 2);
+    CHECK_EQ(fb.pget(59, 59), 2);
+    CHECK_EQ(fb.pget(60, 60), 1);
+    CHECK_EQ(fb.pget(3, 179), 5);
+    CHECK_EQ(fb.pget(300, 20), 6);
+}
+
+TEST(cartvm_tick_counts_ticks_and_finish_stops) {
+    auto vm = open_main("tick", lifecycle("if tick() ~= 0 then error(\"init tick\") end",
+                                          "if tick() == 5 then mother.finish(\"win\") end"));
+    CHECK(outcome(*vm) == Outcome::Running);
+    for (uint64_t t = 0; t < 4; ++t) vm->update(PadState{}, t);
+    CHECK(outcome(*vm) == Outcome::Running);
+    vm->update(PadState{}, 4);
+    CHECK(outcome(*vm) == Outcome::Win);
+    CHECK_EQ(vm->ticks(), uint64_t(5));
+}
+
+TEST(cartvm_finish_takes_win_or_lose_only) {
+    auto vm = open_main("finish_bad", lifecycle("mother.finish(\"draw\")"));
+    CHECK(outcome(*vm) == Outcome::Error);
+    CHECK(has(vm->status().message, "\"win\" or \"lose\""));
+    auto lose = open_main("finish_lose", lifecycle("mother.finish(\"lose\")"));
+    CHECK(outcome(*lose) == Outcome::Lose);
+}
+
+TEST(cartvm_heap_is_limited_to_16mb) {
+    auto vm = open_main("heap", lifecycle("local s = string.rep(\"x\", 20 * 1024 * 1024)"));
+    CHECK(outcome(*vm) == Outcome::Error);
+    CHECK(has(vm->status().message, "16 MB"));
+    auto fits = open_main("heap_fits", lifecycle("local s = string.rep(\"x\", 4 * 1024 * 1024)"));
+    CHECK(outcome(*fits) == Outcome::Running);
+}
+
+TEST(cartvm_pow_is_deterministic) {
+    // Constant-folded (2 ^ 10) and run-time (pow(2, 10)) results must agree.
+    auto vm = open_main("pow", R"(
+        local function pow(a, b) return a ^ b end
+        local ok = 2 ^ 10 == 1024 and pow(2, 10) == 1024 and pow(2, -2) == 0.25
+            and (-2) ^ 3 == -8 and pow(-2, 3) == -8 and pow(2, 0) == 1 and pow(3, 2) == 9
+            and 2 ^ 0.5 == math.sqrt(2) and pow(2, 0.5) == math.sqrt(2)
+            and math.isnan(2 ^ 1.5) and math.isnan(pow(2, 1.5))
+        )" + lifecycle("mother.finish(if ok then \"win\" else \"lose\")"));
+    CHECK(outcome(*vm) == Outcome::Win);
+}
+
+TEST(cartvm_logs_budget_errors) {
+    auto vm = open_main("budget", lifecycle("", "local x = 0 for i = 1, 30000000 do x += 1 end"));
+    vm->update(PadState{}, 0);
+    CHECK(outcome(*vm) == Outcome::Running);
+    CHECK_EQ(vm->budget_errors(), 1);
+}

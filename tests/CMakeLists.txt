@@ -1,4 +1,7 @@
-set(MOTHER_TEST_MODULES palette framebuffer present pad keymap clock options pattern headless)
+set(MOTHER_TEST_MODULES
+    palette framebuffer present pad keymap clock options pattern headless
+    draw cart_source cart_vm
+)
 
 set(test_sources test_main.cpp)
 foreach(module ${MOTHER_TEST_MODULES})
@@ -8,19 +11,38 @@ endforeach()
 add_executable(mother_tests ${test_sources})
 target_link_libraries(mother_tests PRIVATE mother_host)
 target_compile_options(mother_tests PRIVATE ${MOTHER_WARNINGS})
+target_compile_definitions(mother_tests PRIVATE MOTHER_TEST_CARTS="${CMAKE_CURRENT_SOURCE_DIR}/carts")
 
-# Host unit tests: one CTest entry per module, selected by test-name prefix.
+# Host unit tests: one CTest entry per module, selected by test-name prefix
+# (test_cart_vm.cpp's tests start with "cartvm_", and so on).
 foreach(module ${MOTHER_TEST_MODULES})
-    add_test(NAME unit.${module} COMMAND mother_tests ${module}_)
+    string(REPLACE "_" "" prefix ${module})
+    add_test(NAME unit.${module} COMMAND mother_tests ${prefix}_)
 endforeach()
 
 # Command-line tests against the real binary.
+set(carts ${CMAKE_CURRENT_SOURCE_DIR}/carts)
+
 add_test(NAME cli.headless_3600 COMMAND mother run --headless --ticks 3600)
 set_tests_properties(cli.headless_3600 PROPERTIES PASS_REGULAR_EXPRESSION "^result=timeout ticks=3600")
 
 add_test(NAME cli.headless_repeatable
-         COMMAND ${CMAKE_COMMAND} -DMOTHER=$<TARGET_FILE:mother> -DRUNS=3
+         COMMAND ${CMAKE_COMMAND} -DMOTHER=$<TARGET_FILE:mother> -DRUNS=3 -DTICKS=3600
+                 "-DEXPECT=^result=timeout ticks=3600$"
                  -P ${CMAKE_CURRENT_SOURCE_DIR}/headless_repeat.cmake)
 
 add_test(NAME cli.headless_needs_ticks COMMAND mother run --headless)
 set_tests_properties(cli.headless_needs_ticks PROPERTIES WILL_FAIL TRUE)
+
+# M1 acceptance: the hello cart runs headless; the sandbox cart proves io, os, math.random and
+# the rest are out of reach.
+add_test(NAME cli.cart_hello
+         COMMAND ${CMAKE_COMMAND} -DMOTHER=$<TARGET_FILE:mother> -DRUNS=2 -DTICKS=600
+                 -DCART=${carts}/hello "-DEXPECT=^result=timeout ticks=600$"
+                 -P ${CMAKE_CURRENT_SOURCE_DIR}/headless_repeat.cmake)
+
+add_test(NAME cli.cart_sandbox COMMAND mother run ${carts}/sandbox --headless --ticks 10)
+set_tests_properties(cli.cart_sandbox PROPERTIES PASS_REGULAR_EXPRESSION "result=win ticks=1")
+
+add_test(NAME cli.cart_missing COMMAND mother run ${carts}/no_such_cart --headless --ticks 10)
+set_tests_properties(cli.cart_missing PROPERTIES WILL_FAIL TRUE)

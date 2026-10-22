@@ -28,6 +28,10 @@ PadState build_pad(const RawInput& raw, const PadState& prev) {
 
     pad.held = held;
     pad.pressed = uint16_t(held & ~prev.held);
+    pad.pointer = raw.pointer;
+    pad.pointer_x = raw.pointer_x;
+    pad.pointer_y = raw.pointer_y;
+    pad.pointer_down = raw.pointer && raw.pointer_down;
     return pad;
 }
 

@@ -18,3 +18,10 @@ SDL `test/`, `examples/`; Luau `tests/`, `bench/`, `fuzz/`, `.github/`.
 - `luau/VM/include/luaconf.h`: `LUAU_FASTMATH_BEGIN`/`END` are always empty. Upstream turns on
   `/fp:fast` inside a few VM math functions on MSVC (`%`, `//`, `floor`, `ceil`, `sqrt`, `round`);
   that breaks the `/fp:strict` build and risks Windows-only results.
+- `luau/Common/include/Luau/MotherPow.h` (new): `luau_mother_pow`, a deterministic `pow`.
+  Integer exponents use exponentiation by squaring, `0.5` uses `sqrt`, anything else is NaN.
+  It replaces libm `pow` for the `^` operator in `luau/VM/src/lnumutils.h` (`luai_numpow`) and
+  two fast paths in `luau/VM/src/lvmexecute.cpp` (`LOP_POW`, `LOP_POWK`), and in constant folding
+  in `luau/Compiler/src/ConstantFolding.cpp`. libm `pow` differs between platforms.
+  (`luau/Bytecode/include/Luau/Sccp.h` still calls `pow`; only the JIT inliner uses it and
+  MOTHER does not build that.)

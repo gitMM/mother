@@ -5,6 +5,7 @@
 #include "Utils.h"
 #include "Luau/Bytecode.h"
 #include "Luau/Lexer.h"
+#include "Luau/MotherPow.h" // MOTHER patch
 
 #include <vector>
 #include <math.h>
@@ -464,7 +465,7 @@ static void foldBinary(Constant& result, AstExprBinary::Op op, const Constant& l
         if (la.type == Constant::Type_Number && ra.type == Constant::Type_Number)
         {
             result.type = Constant::Type_Number;
-            result.valueNumber = pow(la.valueNumber, ra.valueNumber);
+            result.valueNumber = luau_mother_pow(la.valueNumber, ra.valueNumber); // MOTHER patch: was pow()
         }
         break;
 

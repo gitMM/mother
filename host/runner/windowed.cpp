@@ -21,6 +21,7 @@ struct Video {
     SDL_Window* window = nullptr;
     SDL_Renderer* renderer = nullptr;
     SDL_Texture* texture = nullptr;
+    Viewport viewport = fit_viewport(kScreenW * kStartScale, kScreenH * kStartScale);
 
     ~Video() {
         if (texture) SDL_DestroyTexture(texture);
@@ -49,13 +50,28 @@ void present(Video& v, const Framebuffer& fb, std::vector<uint32_t>& argb) {
 
     int out_w = 0, out_h = 0;
     SDL_GetCurrentRenderOutputSize(v.renderer, &out_w, &out_h);
-    const Viewport vp = fit_viewport(out_w, out_h);
-    const SDL_FRect dst{float(vp.x), float(vp.y), float(vp.w), float(vp.h)};
+    v.viewport = fit_viewport(out_w, out_h);
+    const SDL_FRect dst{float(v.viewport.x), float(v.viewport.y), float(v.viewport.w),
+                        float(v.viewport.h)};
 
     SDL_SetRenderDrawColor(v.renderer, 0, 0, 0, 255);
     SDL_RenderClear(v.renderer);
     SDL_RenderTexture(v.renderer, v.texture, nullptr, &dst);
     SDL_RenderPresent(v.renderer);
+}
+
+// Adds the mouse to raw input while it is over the screen image.
+void read_pointer(const Video& v, RawInput& raw) {
+    if (SDL_GetMouseFocus() != v.window) return;
+    float wx = 0, wy = 0, ox = 0, oy = 0;
+    const SDL_MouseButtonFlags buttons = SDL_GetMouseState(&wx, &wy);
+    if (!SDL_RenderCoordinatesFromWindow(v.renderer, wx, wy, &ox, &oy)) return;
+    int sx = 0, sy = 0;
+    if (!output_to_screen(v.viewport, ox, oy, sx, sy)) return;
+    raw.pointer = true;
+    raw.pointer_x = int16_t(sx);
+    raw.pointer_y = int16_t(sy);
+    raw.pointer_down = (buttons & SDL_BUTTON_LMASK) != 0;
 }
 
 // Keeps the first connected gamepad open; returns false when the window should close.
@@ -76,53 +92,56 @@ bool pump_events(SDL_Gamepad*& gamepad) {
     return running;
 }
 
-int run_loop(Program& prog, int64_t max_ticks, Video& video) {
+RunResult run_loop(Program& prog, int64_t max_ticks, Video& video) {
     Framebuffer fb;
     std::vector<uint32_t> argb(size_t(kScreenW * kScreenH));
     SDL_Gamepad* gamepad = nullptr;
     TickClock clock;
     PadState pad;
-    uint64_t tick = 0;
+    uint64_t ticks = 0;
     uint64_t last = SDL_GetTicksNS();
+    auto running = [&] {
+        return prog.status().outcome == Outcome::Running && (max_ticks < 0 || ticks < uint64_t(max_ticks));
+    };
 
-    bool running = true;
-    while (running) {
-        running = pump_events(gamepad);
+    while (running() && pump_events(gamepad)) {
         const uint64_t now = SDL_GetTicksNS();
         const int due = clock.advance(now - last);
         last = now;
-        for (int i = 0; i < due && running; ++i) {
-            pad = build_pad(read_raw_input(SDL_GetKeyboardState(nullptr), gamepad), pad);
-            prog.update(pad, tick);
-            ++tick;
-            if (max_ticks >= 0 && tick >= uint64_t(max_ticks)) running = false;
+        for (int i = 0; i < due && running(); ++i) {
+            RawInput raw = read_raw_input(SDL_GetKeyboardState(nullptr), gamepad);
+            read_pointer(video, raw);
+            pad = build_pad(raw, pad);
+            prog.update(pad, ticks);
+            ++ticks;
         }
+        if (prog.status().outcome != Outcome::Running) break;
         prog.draw(fb);
         present(video, fb, argb);
     }
     if (gamepad) SDL_CloseGamepad(gamepad);
-    return 0;
+    return {result_name(prog.status().outcome), ticks};
 }
 
 }  // namespace
 
-int run_windowed(Program& prog, int64_t max_ticks) {
+RunResult run_windowed(Program& prog, int64_t max_ticks) {
     SDL_SetMainReady();
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD)) {
-        std::fprintf(stderr, "SDL_Init failed: %s\n", SDL_GetError());
-        return 1;
+        std::fprintf(stderr, "mother: SDL_Init failed: %s\n", SDL_GetError());
+        return {"error", 0};
     }
-    int code = 1;
+    RunResult result{"error", 0};
     {
         Video video;
         if (open_video(video)) {
-            code = run_loop(prog, max_ticks, video);
+            result = run_loop(prog, max_ticks, video);
         } else {
-            std::fprintf(stderr, "could not open the window: %s\n", SDL_GetError());
+            std::fprintf(stderr, "mother: could not open the window: %s\n", SDL_GetError());
         }
     }
     SDL_Quit();
-    return code;
+    return result;
 }
 
 }  // namespace mother

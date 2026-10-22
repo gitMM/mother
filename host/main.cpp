@@ -1,12 +1,31 @@
 #include <cinttypes>
 #include <cstdio>
+#include <cstring>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "runner/headless.h"
 #include "runner/options.h"
 #include "runner/test_pattern.h"
 #include "runner/windowed.h"
+#include "vm/cart_vm.h"
+
+namespace {
+
+// Runs prog in the requested mode, prints the result line and any cart error, and returns the
+// process exit code: 1 for an error, 0 otherwise.
+int run(mother::Program& prog, const mother::Options& opts) {
+    const mother::RunResult r = opts.headless ? mother::run_headless(prog, uint64_t(opts.ticks))
+                                              : mother::run_windowed(prog, opts.ticks);
+    std::printf("result=%s ticks=%" PRIu64 "\n", r.result, r.ticks);
+    if (prog.status().outcome == mother::Outcome::Error) {
+        std::fprintf(stderr, "mother: cart error: %s\n", prog.status().message.c_str());
+    }
+    return std::strcmp(r.result, "error") == 0 ? 1 : 0;
+}
+
+}  // namespace
 
 int main(int argc, char** argv) {
     const std::vector<std::string> args(argv + 1, argv + argc);
@@ -16,16 +35,22 @@ int main(int argc, char** argv) {
         return 2;
     }
     const mother::Options& opts = parsed.opts;
-    if (!opts.cart.empty()) {
-        std::fprintf(stderr, "mother: cart loading is not implemented yet (M1)\n");
-        return 1;
+
+    if (opts.cart.empty()) {
+        mother::TestPattern pattern;
+        return run(pattern, opts);
     }
 
-    mother::TestPattern pattern;
-    if (opts.headless) {
-        const mother::RunResult r = mother::run_headless(pattern, uint64_t(opts.ticks));
-        std::printf("result=%s ticks=%" PRIu64 "\n", r.result, r.ticks);
-        return 0;
+    mother::CartSource source;
+    std::string error;
+    if (!mother::load_cart_source(opts.cart, source, error)) {
+        std::fprintf(stderr, "mother: %s\n", error.c_str());
+        return 1;
     }
-    return mother::run_windowed(pattern, opts.ticks);
+    mother::CartVM cart;
+    if (!cart.open(std::move(source))) {
+        std::fprintf(stderr, "mother: cart error: %s\n", cart.status().message.c_str());
+        return 1;
+    }
+    return run(cart, opts);
 }

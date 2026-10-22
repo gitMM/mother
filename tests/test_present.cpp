@@ -38,6 +38,19 @@ TEST(present_never_scales_below_1x) {
     check_viewport(200, 100, 1, -60, -40);
 }
 
+TEST(present_maps_output_points_to_screen_pixels) {
+    const Viewport vp = fit_viewport(1000, 600);  // 3x at (20, 30)
+    int sx = -1, sy = -1;
+    CHECK(output_to_screen(vp, 20.0f, 30.0f, sx, sy));
+    CHECK_EQ(sx, 0);
+    CHECK_EQ(sy, 0);
+    CHECK(output_to_screen(vp, 979.9f, 569.9f, sx, sy));
+    CHECK_EQ(sx, 319);
+    CHECK_EQ(sy, 179);
+    CHECK(!output_to_screen(vp, 19.9f, 100.0f, sx, sy));  // left letterbox
+    CHECK(!output_to_screen(vp, 500.0f, 570.0f, sx, sy));  // bottom letterbox
+}
+
 TEST(present_maps_indices_through_palette) {
     Framebuffer fb;
     fb.clear(0);

@@ -21,6 +21,9 @@ struct RawInput {
     int8_t axis_x = 0, axis_y = 0;  // analog stick, y positive = down
     bool left = false, right = false, up = false, down = false;  // digital (keys, d-pad)
     std::array<bool, kFaceButtonCount> buttons{};                 // A, B, X, Y, L, R, Start
+    bool pointer = false;                    // a pointer (mouse) is over the screen image
+    int16_t pointer_x = 0, pointer_y = 0;    // screen pixels
+    bool pointer_down = false;
 };
 
 // The virtual pad as the simulation sees it on one tick.
@@ -28,6 +31,9 @@ struct PadState {
     int8_t stick_x = 0, stick_y = 0;  // -127..127, y positive = down
     uint16_t held = 0;                // one bit per Button
     uint16_t pressed = 0;             // bits that went down this tick
+    bool pointer = false;             // pointer fields as in RawInput
+    int16_t pointer_x = 0, pointer_y = 0;
+    bool pointer_down = false;
 
     bool btn(Button b) const { return (held & button_bit(b)) != 0; }
     bool btnp(Button b) const { return (pressed & button_bit(b)) != 0; }

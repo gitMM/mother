@@ -6,12 +6,15 @@ RunResult run_headless(Program& prog, uint64_t ticks) {
     Framebuffer fb;
     PadState pad;
     const RawInput neutral;
-    for (uint64_t tick = 0; tick < ticks; ++tick) {
+    uint64_t done = 0;
+    while (done < ticks && prog.status().outcome == Outcome::Running) {
         pad = build_pad(neutral, pad);
-        prog.update(pad, tick);
+        prog.update(pad, done);
+        ++done;
+        if (prog.status().outcome == Outcome::Error) break;
         prog.draw(fb);
     }
-    return {"timeout", ticks};
+    return {result_name(prog.status().outcome), done};
 }
 
 }  // namespace mother

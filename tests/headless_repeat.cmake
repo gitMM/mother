@@ -1,8 +1,9 @@
-# Runs `mother run --headless --ticks 3600` RUNS times and fails unless every run exits 0
-# and prints the same thing. Usage: cmake -DMOTHER=<exe> -DRUNS=3 -P headless_repeat.cmake
+# Runs `mother run [CART] --headless --ticks TICKS` RUNS times and fails unless every run exits 0,
+# prints the same thing and matches EXPECT (checked against the output without trailing whitespace).
+# Usage: cmake -DMOTHER=<exe> -DRUNS=3 -DTICKS=3600 [-DCART=<dir>] -DEXPECT=<regex> -P headless_repeat.cmake
 
 foreach(i RANGE 1 ${RUNS})
-    execute_process(COMMAND ${MOTHER} run --headless --ticks 3600
+    execute_process(COMMAND ${MOTHER} run ${CART} --headless --ticks ${TICKS}
                     OUTPUT_VARIABLE out RESULT_VARIABLE rc)
     if(NOT rc EQUAL 0)
         message(FATAL_ERROR "run ${i} exited with ${rc}")
@@ -14,7 +15,8 @@ foreach(i RANGE 1 ${RUNS})
     endif()
 endforeach()
 
-if(NOT first MATCHES "^result=timeout ticks=3600\r?\n$")
-    message(FATAL_ERROR "unexpected output: ${first}")
+string(STRIP "${first}" stripped)
+if(NOT stripped MATCHES "${EXPECT}")
+    message(FATAL_ERROR "output does not match ${EXPECT}:\n${first}")
 endif()
 message(STATUS "${RUNS} runs, identical: ${first}")

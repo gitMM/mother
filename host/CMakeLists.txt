@@ -1,4 +1,5 @@
 add_library(mother_host STATIC
+    gfx/draw.cpp
     gfx/framebuffer.cpp
     gfx/palette.cpp
     gfx/present.cpp
@@ -9,9 +10,16 @@ add_library(mother_host STATIC
     runner/options.cpp
     runner/test_pattern.cpp
     runner/windowed.cpp
+    vm/api_args.cpp
+    vm/api_gfx.cpp
+    vm/api_host.cpp
+    vm/api_input.cpp
+    vm/cart_source.cpp
+    vm/cart_vm.cpp
+    vm/sandbox.cpp
 )
 target_include_directories(mother_host PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(mother_host PUBLIC SDL3::SDL3-static)
+target_link_libraries(mother_host PUBLIC SDL3::SDL3-static Luau.VM Luau.Compiler)
 target_compile_options(mother_host PRIVATE ${MOTHER_WARNINGS})
 
 add_executable(mother main.cpp)
