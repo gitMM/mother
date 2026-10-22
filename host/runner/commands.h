@@ -12,5 +12,6 @@ int run_command(const Options& opts);     // also import: run with opts.imports;
 int record_command(const Options& opts);  // also writes opts.trace
 int replay_command(const Options& opts);  // --hash also prints "TICK HASH" for every tick
 int matrix_command(const Options& opts);  // runner/matrix.cpp
+int rogue_command(const Options& opts);   // a run of every cart (runner/rogue.h)
 
 }  // namespace mother

@@ -1,5 +1,6 @@
 #include "vm/cart_source.h"
 
+#include <algorithm>
 #include <fstream>
 #include <iterator>
 #include <system_error>
@@ -22,6 +23,16 @@ bool read_file(const fs::path& path, std::string& out) {
 }
 
 }  // namespace
+
+std::vector<fs::path> cart_folders(const fs::path& dir) {
+    std::error_code ec;
+    std::vector<fs::path> out;
+    for (const fs::directory_entry& e : fs::directory_iterator(dir, ec)) {
+        if (e.is_directory() && fs::is_regular_file(e.path() / "cart.toml")) out.push_back(e.path());
+    }
+    std::sort(out.begin(), out.end());
+    return out;
+}
 
 bool valid_module_name(const std::string& name) {
     if (name.empty()) return false;

@@ -70,6 +70,23 @@ local function release(imp, x, y, params)
     return e
 end
 
+-- Why a world with this [env] can't take an export of archetype `name`, or nil when it can. The
+-- check imports.add makes; the host also asks it about other carts' [env] (the run layer).
+function imports.check(name, env)
+    local def = archetypes.get(name)
+    if def == nil then
+        return `there is no archetype {name}`
+    end
+    local why = archetypes.check(def, env)
+    if why ~= nil then
+        return why
+    end
+    if def.category == "body" then
+        return "is a body (an avatar), which never leaves its cart"
+    end
+    return nil
+end
+
 -- spec: { archetype, params (a table or nil), source, export }. Returns nil once it is in, or
 -- why this cart can't take it ("needs surface=ground, host has none").
 function imports.add(spec)
@@ -81,12 +98,9 @@ function imports.add(spec)
     if def == nil then
         error(`import {label}: there is no archetype {spec.archetype}`, 0)
     end
-    local why = archetypes.check(def, S.env)
+    local why = imports.check(spec.archetype, S.env)
     if why ~= nil then
         return why
-    end
-    if def.category == "body" then
-        return "is a body (an avatar), which never leaves its cart"
     end
     local p = table.clone(archetypes.params(spec.archetype, def, spec.params, 0))
     copy_assets(def, p)

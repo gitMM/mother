@@ -1,10 +1,14 @@
-# Runs `mother run [CART] --headless --ticks TICKS [ARGS]` RUNS times and fails unless every run
+# Runs `mother VERB [CART] --headless --ticks TICKS [ARGS]` RUNS times and fails unless every run
 # exits 0, prints the same thing and matches EXPECT (checked against the output without trailing
-# whitespace). ARGS is a ;-separated list of extra arguments.
-# Usage: cmake -DMOTHER=<exe> -DRUNS=3 -DTICKS=3600 [-DCART=<dir>] [-DARGS=a;b] -DEXPECT=<regex> -P headless_repeat.cmake
+# whitespace). VERB is run unless given; ARGS is a ;-separated list of extra arguments.
+# Usage: cmake -DMOTHER=<exe> -DRUNS=3 -DTICKS=3600 [-DVERB=rogue] [-DCART=<dir>] [-DARGS=a;b] -DEXPECT=<regex>
+#        -P headless_repeat.cmake
 
+if(NOT DEFINED VERB)
+    set(VERB run)
+endif()
 foreach(i RANGE 1 ${RUNS})
-    execute_process(COMMAND ${MOTHER} run ${CART} --headless --ticks ${TICKS} ${ARGS}
+    execute_process(COMMAND ${MOTHER} ${VERB} ${CART} --headless --ticks ${TICKS} ${ARGS}
                     OUTPUT_VARIABLE out RESULT_VARIABLE rc)
     if(NOT rc EQUAL 0)
         message(FATAL_ERROR "run ${i} exited with ${rc}")

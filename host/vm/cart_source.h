@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <map>
 #include <string>
+#include <vector>
 
 #include "assets/spr_format.h"
 #include "assets/tilemap.h"
@@ -30,6 +31,9 @@ struct CartSource {
 // valid, the Luau source must total at most kMaxCartSource bytes, and sprites.spr, map.map and
 // audio.trk, when present, must parse.
 bool load_cart_source(const std::filesystem::path& dir, CartSource& out, std::string& error);
+
+// The subfolders of dir that hold a cart.toml, in name order (`mother matrix` and `mother rogue`).
+std::vector<std::filesystem::path> cart_folders(const std::filesystem::path& dir);
 
 // Letters, digits and underscores only, so a module name can never leave the cart folder.
 bool valid_module_name(const std::string& name);

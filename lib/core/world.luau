@@ -6,6 +6,7 @@
 --   hash()             every tick after step: the buffer and byte count to hash
 --   audit()            the matrix test's checks after a step (core/imports.luau)
 --   describe()         every archetype's declarations (core/archetypes.luau), for the host
+--   check(name, env)   why a cart with this [env] can't import archetype `name`, nil if it can
 local S = use("core/state")
 local check = use("core/check")
 local archetypes = use("core/archetypes")
@@ -316,4 +317,5 @@ return table.freeze({
     hash = hash.write,
     audit = imports.audit,
     describe = archetypes.describe,
+    check = imports.check,
 })

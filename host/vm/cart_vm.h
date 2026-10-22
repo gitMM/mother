@@ -55,6 +55,9 @@ public:
     bool audit(WorldAudit& out);
     // Every MOTHERLIB archetype's declarations; empty if it failed.
     std::vector<ArchetypeInfo> describe();
+    // Sets why a cart with this [env] (any cart's) can't import `archetype`, "" when it can, by
+    // the check `mother import` makes; false (and an error status) if it failed.
+    bool check_import(const std::string& archetype, const TomlValue& env, std::string& why);
 
     // For the API bindings.
     static CartVM& of(lua_State* L);

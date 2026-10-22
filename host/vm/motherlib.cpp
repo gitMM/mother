@@ -157,6 +157,7 @@ void Motherlib::open(lua_State* L, int api_ref, const TomlValue& manifest) {
     import_ref_ = take_ref(L, hooks, "import");
     audit_ref_ = take_ref(L, hooks, "audit");
     describe_ref_ = take_ref(L, hooks, "describe");
+    check_ref_ = take_ref(L, hooks, "check");
     lua_getfield(L, hooks, "world");
     lua_setglobal(L, "world");
     lua_getfield(L, hooks, "create");
@@ -223,6 +224,13 @@ bool field_bool(lua_State* L, const char* key) {
     return b;
 }
 
+int field_int(lua_State* L, const char* key) {
+    lua_getfield(L, -1, key);
+    const int n = int(lua_tointeger(L, -1));
+    lua_pop(L, 1);
+    return n;
+}
+
 constexpr const char* kAxes[] = {"gravity", "surface", "scroll", "avatar", "spawn", "deploy"};
 
 }  // namespace
@@ -242,8 +250,14 @@ std::vector<ArchetypeInfo> Motherlib::describe(lua_State* L) {
         a.deployable = field_bool(L, "deployable");
         a.solid = field_bool(L, "solid");
         a.hurts_owner = field_bool(L, "hurts_owner");
-        lua_getfield(L, -1, "tier");
-        a.tier = int(lua_tointeger(L, -1));
+        a.tier = field_int(L, "tier");
+        lua_getfield(L, -1, "sprites");
+        for (int k = 1; k <= lua_objlen(L, -1); ++k) {
+            lua_rawgeti(L, -1, k);
+            a.sprites.push_back({field_string(L, "param"), field_int(L, "w"), field_int(L, "h"), field_int(L, "frames"),
+                                 field_int(L, "default")});
+            lua_pop(L, 1);
+        }
         lua_pop(L, 1);
         lua_getfield(L, -1, "requires");
         for (const char* axis : kAxes) {
@@ -261,6 +275,16 @@ std::vector<ArchetypeInfo> Motherlib::describe(lua_State* L) {
     }
     lua_pop(L, 1);
     return out;
+}
+
+std::string Motherlib::check(lua_State* L, const std::string& archetype, const TomlValue& env) {
+    lua_getref(L, check_ref_);
+    lua_pushstring(L, archetype.c_str());
+    push_toml(L, env);
+    lua_call(L, 2, 1);
+    std::string why = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
+    lua_pop(L, 1);
+    return why;
 }
 
 int Motherlib::use(lua_State* L, const std::string& name) {

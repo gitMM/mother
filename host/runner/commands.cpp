@@ -13,6 +13,7 @@
 
 #include "audio/wav.h"
 #include "runner/headless.h"
+#include "runner/rogue.h"
 #include "runner/test_pattern.h"
 #include "runner/windowed.h"
 #include "vm/cart_vm.h"
@@ -142,6 +143,22 @@ int run_command(const Options& opts) {
     bool io_ok = true;
     const RunResult r = execute(*prog, opts, ticks, input.get(), nullptr, io_ok);
     print_result(r, seed, opts, *prog, "");
+    return exit_code(r, io_ok);
+}
+
+int rogue_command(const Options& opts) {
+    std::unique_ptr<InputSource> input;
+    if (opts.input == InputKind::Fuzz) input = std::make_unique<FuzzSource>(opts.fuzz_seed);
+    const uint64_t seed = run_seed(opts);
+    Rogue rogue;
+    std::string error;
+    if (!rogue.open(opts.cart, seed, error)) {
+        std::fprintf(stderr, "mother: rogue: %s\n", error.c_str());
+        return 1;
+    }
+    bool io_ok = true;
+    const RunResult r = execute(rogue, opts, opts.ticks, input.get(), nullptr, io_ok);
+    print_result(r, seed, opts, rogue, "");
     return exit_code(r, io_ok);
 }
 

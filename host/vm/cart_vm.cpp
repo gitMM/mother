@@ -51,6 +51,18 @@ int describe_lib(lua_State* L) {
     return 0;
 }
 
+struct ImportCheck {
+    const std::string* archetype;
+    const TomlValue* env;
+    std::string* why;
+};
+
+int check_lib(lua_State* L) {
+    const auto* c = static_cast<const ImportCheck*>(lua_tolightuserdata(L, 1));
+    *c->why = CartVM::of(L).lib().check(L, *c->archetype, *c->env);
+    return 0;
+}
+
 }  // namespace
 
 CartVM::~CartVM() {
@@ -185,6 +197,13 @@ std::vector<ArchetypeInfo> CartVM::describe() {
     lua_pushlightuserdata(L_, &out);
     if (!protected_call(1)) out.clear();
     return out;
+}
+
+bool CartVM::check_import(const std::string& archetype, const TomlValue& env, std::string& why) {
+    ImportCheck check{&archetype, &env, &why};
+    lua_pushcfunction(L_, check_lib, "check");
+    lua_pushlightuserdata(L_, &check);
+    return protected_call(1);
 }
 
 int CartVM::import_tiles(lua_State* L, int tile, int w, int h) {

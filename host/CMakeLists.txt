@@ -31,6 +31,8 @@ add_library(mother_host STATIC
     runner/headless.cpp
     runner/matrix.cpp
     runner/options.cpp
+    runner/rogue.cpp
+    runner/rogue_screens.cpp
     runner/test_pattern.cpp
     runner/trace.cpp
     runner/windowed.cpp

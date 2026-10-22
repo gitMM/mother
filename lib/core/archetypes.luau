@@ -216,8 +216,9 @@ end
 
 -- Every archetype's declarations as plain data, sorted by name, for the host (the import harness
 -- and the archetype axis tests): { name, category, layer, deployable, solid, hurts_owner, damage,
--- tier, requires = { axis = { values } } }, an empty list meaning axes.ANY and deploy values
--- written "true" and "false".
+-- tier, requires = { axis = { values } }, sprites = { { param, w, h, frames, default } } }, an
+-- empty list meaning axes.ANY, deploy values written "true" and "false", and sprite blocks sorted
+-- by param.
 function archetypes.describe()
     local names = {}
     for name in defs do
@@ -237,6 +238,14 @@ function archetypes.describe()
             end
             requires[axis] = values
         end
+        local sprites = {}
+        for param, block in d.sprites or {} do
+            local default = d.params[param]
+            table.insert(sprites, { param = param, w = block.w, h = block.h, frames = block.frames, default = default })
+        end
+        table.sort(sprites, function(a, b)
+            return a.param < b.param
+        end)
         table.insert(out, {
             name = name,
             category = d.category,
@@ -247,6 +256,7 @@ function archetypes.describe()
             damage = d.damage,
             tier = d.tier,
             requires = requires,
+            sprites = sprites,
         })
     end
     return out

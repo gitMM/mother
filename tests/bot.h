@@ -19,6 +19,54 @@
 #include "vm/cart_vm.h"
 #include "vm/sandbox.h"
 
+// A bot loaded into an open cart VM.
+class Bot {
+public:
+    bool load(mother::CartVM& vm, const std::string& source, std::string& error) {
+        L_ = vm.state();
+        lua_pushvalue(L_, LUA_GLOBALSINDEX);
+        const int globals = lua_ref(L_, -1);
+        lua_pop(L_, 1);
+        if (!mother::load_module(L_, globals, "bot", source, error)) return false;
+        if (lua_pcall(L_, 0, 1, 0) != LUA_OK) {
+            error = lua_tostring(L_, -1);
+            lua_pop(L_, 1);
+            return false;
+        }
+        fn_ = lua_ref(L_, -1);
+        lua_pop(L_, 1);
+        return true;
+    }
+
+    // The pad for the cart's tick t (0-based), after prev.
+    bool pad(int t, const mother::PadState& prev, mother::PadState& out, std::string& error) {
+        lua_getref(L_, fn_);
+        lua_pushinteger(L_, t);
+        if (lua_pcall(L_, 1, 3, 0) != LUA_OK) {
+            error = std::string("bot: ") + lua_tostring(L_, -1);
+            lua_pop(L_, 1);
+            return false;
+        }
+        mother::RawInput raw;
+        raw.axis_x = int8_t(std::lround(lua_tonumber(L_, -3) * 127));
+        raw.axis_y = int8_t(std::lround(lua_tonumber(L_, -2) * 127));
+        const char* keys = lua_tostring(L_, -1);
+        for (const char* k = keys ? keys : ""; *k; ++k) {
+            using mother::Button;
+            const Button b = *k == 'a' ? Button::A : *k == 'b' ? Button::B : *k == 'x' ? Button::X
+                           : *k == 'y' ? Button::Y : *k == 'l' ? Button::L : *k == 'r' ? Button::R : Button::Start;
+            raw.buttons[mother::face_index(b)] = true;
+        }
+        lua_pop(L_, 3);
+        out = mother::build_pad(raw, prev);
+        return true;
+    }
+
+private:
+    lua_State* L_ = nullptr;
+    int fn_ = 0;
+};
+
 struct BotRun {
     mother::Outcome outcome = mother::Outcome::Error;
     uint64_t ticks = 0;
@@ -44,39 +92,13 @@ inline BotRun play(const std::filesystem::path& cart, const std::string& bot, in
         out.refused = vm.incompatible();
         return out;
     }
-    lua_State* L = vm.state();
-    lua_pushvalue(L, LUA_GLOBALSINDEX);
-    const int globals = lua_ref(L, -1);
-    lua_pop(L, 1);
-    if (!mother::load_module(L, globals, "bot", bot, out.message)) return out;
-    if (lua_pcall(L, 0, 1, 0) != LUA_OK) {
-        out.message = lua_tostring(L, -1);
-        return out;
-    }
-    const int fn = lua_ref(L, -1);
-    lua_pop(L, 1);
+    Bot player;
+    if (!player.load(vm, bot, out.message)) return out;
 
     mother::PadState pad;
     mother::TickAudio audio;
     for (int t = 0; t < max_ticks && vm.status().outcome == mother::Outcome::Running; ++t) {
-        lua_getref(L, fn);
-        lua_pushinteger(L, t);
-        if (lua_pcall(L, 1, 3, 0) != LUA_OK) {
-            out.message = std::string("bot: ") + lua_tostring(L, -1);
-            return out;
-        }
-        mother::RawInput raw;
-        raw.axis_x = int8_t(std::lround(lua_tonumber(L, -3) * 127));
-        raw.axis_y = int8_t(std::lround(lua_tonumber(L, -2) * 127));
-        const char* keys = lua_tostring(L, -1);
-        for (const char* k = keys ? keys : ""; *k; ++k) {
-            using mother::Button;
-            const Button b = *k == 'a' ? Button::A : *k == 'b' ? Button::B : *k == 'x' ? Button::X
-                           : *k == 'y' ? Button::Y : *k == 'l' ? Button::L : *k == 'r' ? Button::R : Button::Start;
-            raw.buttons[mother::face_index(b)] = true;
-        }
-        lua_pop(L, 3);
-        pad = mother::build_pad(raw, pad);
+        if (!player.pad(t, pad, pad, out.message)) return out;
         vm.update(pad, uint64_t(t));
         vm.take_audio(audio);
         for (const mother::AudioCommand& c : audio) {

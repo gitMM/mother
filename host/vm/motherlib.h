@@ -16,10 +16,17 @@ struct ImportSource;
 
 // An archetype's declarations (lib/core/archetypes.luau), as the host sees them.
 struct ArchetypeInfo {
+    struct Sprite {
+        std::string param;  // the param that holds its first tile
+        int w = 1, h = 1, frames = 1;
+        int fallback = 0;   // the param's default
+    };
+
     std::string name, category, layer, damage;
     bool deployable = false, solid = false, hurts_owner = false;
     int tier = 0;
     std::map<std::string, std::vector<std::string>> accepts;  // requires: axis -> values; empty = any
+    std::vector<Sprite> sprites;                               // sorted by param
 };
 
 // The matrix test's checks after a step (lib/core/imports.luau).
@@ -56,6 +63,9 @@ public:
     WorldAudit audit(lua_State* L);
     // Every archetype, sorted by name, inside a protected call.
     std::vector<ArchetypeInfo> describe(lua_State* L);
+    // Why a cart with this [env] can't import `archetype`, "" when it can (add_import's check,
+    // against any cart's env), inside a protected call.
+    std::string check(lua_State* L, const std::string& archetype, const TomlValue& env);
 
     // For use(): pushes the module's value, running it the first time.
     int use(lua_State* L, const std::string& name);
@@ -67,6 +77,7 @@ private:
     int import_ref_ = 0;
     int audit_ref_ = 0;
     int describe_ref_ = 0;
+    int check_ref_ = 0;
     std::map<std::string, int> loaded_;  // module name -> registry ref of its value
     std::set<std::string> loading_;      // for cycle errors
 };

@@ -51,6 +51,9 @@ struct Program {
         return none;
     }
     virtual void take_audio(TickAudio& out) { out.clear(); }
+    // Changes when audio_setup() does (the run layer switching carts). The runners then restart
+    // their synth with the new setup, silencing every voice, before that tick's commands.
+    virtual uint32_t audio_generation() const { return 0; }
     // The state hash after the latest update, and how many ticks ran over the CPU budget.
     virtual uint64_t state_hash() const { return 0; }
     virtual int budget_errors() const { return 0; }

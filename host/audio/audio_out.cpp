@@ -37,11 +37,16 @@ AudioOut::~AudioOut() {
 }
 
 void AudioOut::push(TickAudio& tick) {
-    TickAudio taken;
-    taken.swap(tick);
+    Queued next;
+    next.tick.swap(tick);
+    next.restart = std::move(restart_);
     if (!stream_) return;
     std::lock_guard<std::mutex> lock(mutex_);
-    queue_.push_back(std::move(taken));
+    queue_.push_back(std::move(next));
+}
+
+void AudioOut::restart(const AudioSetup& setup) {
+    restart_ = std::make_unique<AudioSetup>(setup);
 }
 
 void SDLCALL AudioOut::feed(void* self, SDL_AudioStream* stream, int additional, int) {
@@ -50,35 +55,36 @@ void SDLCALL AudioOut::feed(void* self, SDL_AudioStream* stream, int additional,
 
 void AudioOut::fill(SDL_AudioStream* stream, int bytes) {
     const size_t wanted = size_t(bytes) / sizeof(int16_t);
-    TickAudio tick;
+    Queued next;
     std::vector<int16_t> dropped;
     for (;;) {
         {
             std::lock_guard<std::mutex> lock(mutex_);
             if (queue_.size() <= kMaxQueuedTicks) break;
-            tick = std::move(queue_.front());
+            next = std::move(queue_.front());
             queue_.pop_front();
         }
         dropped.clear();
-        render_next(dropped, tick);
+        render_next(dropped, next);
     }
     while (pending_.size() < wanted) {
         {
             std::lock_guard<std::mutex> lock(mutex_);
             if (queue_.empty()) break;
-            tick = std::move(queue_.front());
+            next = std::move(queue_.front());
             queue_.pop_front();
         }
-        render_next(pending_, tick);
+        render_next(pending_, next);
     }
     if (pending_.size() < wanted) pending_.resize(wanted, 0);  // the simulation is behind: silence
     SDL_PutAudioStreamData(stream, pending_.data(), int(wanted * sizeof(int16_t)));
     pending_.erase(pending_.begin(), pending_.begin() + std::ptrdiff_t(wanted));
 }
 
-void AudioOut::render_next(std::vector<int16_t>& into, TickAudio& tick) {
+void AudioOut::render_next(std::vector<int16_t>& into, Queued& next) {
+    if (next.restart) synth_ = Synth(*next.restart);
     std::array<int16_t, kTickFrames * 2> samples{};
-    synth_.render_tick(tick, samples.data());
+    synth_.render_tick(next.tick, samples.data());
     into.insert(into.end(), samples.begin(), samples.end());
 }
 

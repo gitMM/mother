@@ -5,7 +5,7 @@ set(MOTHER_TEST_MODULES
     trk_format synth sequencer
     rng fixed_math fuzz trace
     toml manifest world collision damage spawn bounds objective
-    knightfall breakout blockfall starfighter jumper rally carts import axes
+    knightfall breakout blockfall starfighter jumper rally carts import axes rogue
 )
 
 set(test_sources test_main.cpp)
@@ -145,3 +145,16 @@ add_test(NAME cli.matrix
                  -DOUT=${CMAKE_CURRENT_BINARY_DIR}/matrix.md -DEXPECTED=${CMAKE_CURRENT_SOURCE_DIR}/matrix_expected.md
                  -P ${CMAKE_CURRENT_SOURCE_DIR}/matrix_check.cmake)
 set_tests_properties(cli.matrix PROPERTIES TIMEOUT 1500)
+
+# The run layer (with unit.rogue): mother rogue plays every cart in one run; fuzzed headless runs
+# repeat exactly, with no errors or budget overruns. Fuzz input loses a cart soon, then quits.
+foreach(seed 1 2 3)
+    add_test(NAME cli.rogue_fuzz_${seed}
+             COMMAND ${CMAKE_COMMAND} -DMOTHER=$<TARGET_FILE:mother> -DRUNS=2 -DTICKS=60000 -DVERB=rogue
+                     -DCART=${games} "-DARGS=--input;fuzz:${seed};--seed;${seed}"
+                     "-DEXPECT=^result=(win|lose|timeout) ticks=[0-9]+ seed=${seed} budget=0 hash=[0-9a-f]+ audio=[0-9a-f]+$"
+                     -P ${CMAKE_CURRENT_SOURCE_DIR}/headless_repeat.cmake)
+endforeach()
+
+add_test(NAME cli.rogue_no_carts COMMAND mother rogue ${carts}/no_such_folder --headless --ticks 10)
+set_tests_properties(cli.rogue_no_carts PROPERTIES WILL_FAIL TRUE)

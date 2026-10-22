@@ -16,5 +16,6 @@ int main(int argc, char** argv) {
     if (opts.command == "record") return mother::record_command(opts);
     if (opts.command == "replay") return mother::replay_command(opts);
     if (opts.command == "matrix") return mother::matrix_command(opts);
+    if (opts.command == "rogue") return mother::rogue_command(opts);
     return mother::run_command(opts);
 }

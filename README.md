@@ -32,7 +32,16 @@ mother run tests/carts/dice --input trace:out.trace   # watch a trace
 mother run                                         # palette test pattern
 mother import carts/knightfall breakout:ball       # a cart with up to 3 exports of other carts
 mother matrix                                      # every export against every cart; writes matrix.md
+mother rogue                                       # a run: all six carts in a random order
 ```
+
+**Runs.** `mother rogue [CARTS]` plays every cart in CARTS (default `carts`) once, in an order
+shuffled from the seed (which also seeds each cart). Win a cart to go on; lose one and the run is
+over. After each win you take one of that cart's exports along, or skip (B). You hold up to three,
+and taking a fourth means dropping one. Every later cart that can host what you hold gets it, as
+with `mother import`: tools on X (key C), drops on Y (key V), and wild things that attack anyone.
+Exports a cart can't host sit that cart out, and the screen before it says why. When the run ends,
+A starts a new one (seed + 1) and B quits.
 
 **Imports.** `mother import` runs a cart with exports of others (`SOURCE:EXPORT`, SOURCE a cart
 folder next to it). It refuses one the cart's `[env]` can't host, saying which axis failed, and
@@ -60,7 +69,8 @@ replays them on Windows, macOS and Linux.
 - **STARFIGHTER** (`carts/starfighter`): survive 90 s of diving formations and mines. A fire,
   B homing missile.
 
-Every cart has a title screen (A or Start to play) and a result screen, then exits.
+Every cart has a title screen (A or Start to play) and a result screen, then exits (or, in a
+run, hands back to the run).
 
 A cart is a folder with `cart.toml` and `main.luau` (plus any other `*.luau` modules, loaded with
 `import("name")`). `main.luau` defines `cart.init`, `cart.update`, `cart.draw` and `cart.hash`.

@@ -12,6 +12,7 @@ const char* const kUsage =
     "  mother replay CART TRACE [--hash]\n"
     "  mother import CART SOURCE:EXPORT [SOURCE:EXPORT ...] [the options of run]\n"
     "  mother matrix [CARTS] [--out FILE] [--seeds N] [--ticks N]\n"
+    "  mother rogue [CARTS] [--headless --ticks N] [--seed S] [--input fuzz:S] [--wav FILE]\n"
     "\n"
     "  run with no CART shows the built-in palette test pattern\n"
     "  --headless   no window or audio device; needs --ticks unless the input is a trace\n"
@@ -24,7 +25,9 @@ const char* const kUsage =
     "               CART, or a path); exits 3 when CART can't take one, saying why\n"
     "  matrix       every export of every cart in CARTS (default carts) against every other cart:\n"
     "               writes the table to --out (default matrix.md) and runs each compatible pair\n"
-    "               for --seeds (3) fuzz seeds of --ticks (36000) ticks, checked; exits 1 on a failure\n";
+    "               for --seeds (3) fuzz seeds of --ticks (36000) ticks, checked; exits 1 on a failure\n"
+    "  rogue        a run: every cart in CARTS (default carts) once, in a random order; after each\n"
+    "               win, take one of its exports into the carts that follow; one loss ends it\n";
 
 namespace {
 
@@ -49,7 +52,7 @@ ParseResult parse_options(const std::vector<std::string>& args) {
     Options& o = r.opts;
     o.command = args[0];
     if (o.command != "run" && o.command != "record" && o.command != "replay" && o.command != "import" &&
-        o.command != "matrix") {
+        o.command != "matrix" && o.command != "rogue") {
         return fail("unknown command: " + o.command);
     }
 
@@ -108,6 +111,10 @@ ParseResult parse_options(const std::vector<std::string>& args) {
     if (o.command == "run") {
         if (positional.size() > 1) return fail("unexpected argument: " + positional[1]);
         if (!positional.empty()) o.cart = positional[0];
+    } else if (o.command == "rogue") {
+        if (positional.size() > 1) return fail("unexpected argument: " + positional[1]);
+        o.cart = positional.empty() ? "carts" : positional[0];
+        if (o.input == InputKind::Trace) return fail("rogue takes fuzz input, not a trace");
     } else if (o.command == "import") {
         if (positional.size() < 2) return fail("import needs a cart and at least one SOURCE:EXPORT");
         if (positional.size() > 4) return fail("import takes at most 3 exports");

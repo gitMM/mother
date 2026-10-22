@@ -22,22 +22,27 @@ bool load_import(const fs::path& host_dir, const std::string& spec, ImportSource
         error = "import " + spec + ": " + error;
         return false;
     }
+    if (!import_from(cart, export_id, out)) {
+        error = "import " + spec + ": " + source + "'s cart.toml has no [[exports]] with id " + export_id;
+        return false;
+    }
+    return true;
+}
+
+bool import_from(const CartSource& cart, const std::string& export_id, ImportSource& out) {
     const TomlValue* exports = cart.manifest.find("exports");
     const TomlValue* found = nullptr;
     for (size_t i = 0; exports && i < exports->items.size(); ++i) {
         if (exports->items[i].find("id")->string == export_id) found = &exports->items[i];
     }
-    if (!found) {
-        error = "import " + spec + ": " + source + "'s cart.toml has no [[exports]] with id " + export_id;
-        return false;
-    }
+    if (!found) return false;
     out.cart = cart.manifest.find("cart")->find("id")->string;
     out.export_id = export_id;
     out.archetype = found->find("archetype")->string;
     const TomlValue* params = found->find("params");
     out.params = params ? *params : TomlValue{};
-    out.art = std::move(cart.art);
-    out.tracker = std::move(cart.tracker);
+    out.art = cart.art;
+    out.tracker = cart.tracker;
     return true;
 }
 

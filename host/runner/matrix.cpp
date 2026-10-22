@@ -95,16 +95,11 @@ Run run_pair(const Cart& host, const ImportSource& import, uint64_t seed, int64_
 }
 
 bool load_carts(const fs::path& dir, std::vector<Cart>& carts) {
-    std::error_code ec;
-    std::vector<fs::path> dirs;
-    for (const fs::directory_entry& e : fs::directory_iterator(dir, ec)) {
-        if (e.is_directory() && fs::is_regular_file(e.path() / "cart.toml")) dirs.push_back(e.path());
-    }
-    if (ec || dirs.empty()) {
+    const std::vector<fs::path> dirs = cart_folders(dir);
+    if (dirs.empty()) {
         std::fprintf(stderr, "mother: matrix: no carts in %s\n", dir.string().c_str());
         return false;
     }
-    std::sort(dirs.begin(), dirs.end());
     for (const fs::path& d : dirs) {
         Cart cart;
         std::string error;

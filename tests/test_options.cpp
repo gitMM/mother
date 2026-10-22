@@ -39,6 +39,21 @@ TEST(options_run_windowed_with_tick_limit) {
     CHECK_EQ(r.opts.ticks, 120);
 }
 
+TEST(options_rogue_defaults_to_the_carts_folder) {
+    ParseResult r = parse({"rogue"});
+    CHECK(r.ok);
+    CHECK_EQ(r.opts.cart, std::string("carts"));
+    CHECK(!r.opts.headless);
+    r = parse({"rogue", "games", "--headless", "--ticks", "600", "--input", "fuzz:2", "--seed", "4"});
+    CHECK(r.ok);
+    CHECK_EQ(r.opts.cart, std::string("games"));
+    CHECK(r.opts.input == InputKind::Fuzz);
+    CHECK_EQ(r.opts.seed, uint64_t(4));
+    CHECK(!parse({"rogue", "a", "b"}).ok);
+    CHECK(!parse({"rogue", "--input", "trace:x.trace"}).ok);
+    CHECK(!parse({"rogue", "--headless"}).ok);
+}
+
 TEST(options_seed_and_inputs) {
     ParseResult r = parse({"run", "c", "--headless", "--ticks", "18000", "--input", "fuzz:42", "--seed", "7"});
     CHECK(r.ok);

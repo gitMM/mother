@@ -98,6 +98,7 @@ RunResult run_loop(Program& prog, const WindowedRun& run, Video& video) {
     std::vector<uint32_t> argb(size_t(kScreenW * kScreenH));
     SDL_Gamepad* gamepad = nullptr;
     AudioOut audio(prog.audio_setup());
+    uint32_t generation = prog.audio_generation();
     TickAudio commands;
     TickClock clock;
     PadState pad;
@@ -123,6 +124,10 @@ RunResult run_loop(Program& prog, const WindowedRun& run, Video& video) {
             ++ticks;
             if (prog.status().outcome == Outcome::Error) break;
             if (run.observe) run.observe(ticks, pad, prog.state_hash());
+            if (prog.audio_generation() != generation) {
+                generation = prog.audio_generation();
+                audio.restart(prog.audio_setup());
+            }
             prog.take_audio(commands);
             audio.push(commands);
         }

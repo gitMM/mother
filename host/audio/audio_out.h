@@ -1,6 +1,7 @@
 #pragma once
 
 #include <deque>
+#include <memory>
 #include <mutex>
 #include <vector>
 
@@ -21,16 +22,24 @@ public:
     AudioOut& operator=(const AudioOut&) = delete;
 
     void push(TickAudio& tick);  // takes the commands, leaving tick empty
+    // A new synth with this setup for the ticks pushed from now on, in order with them.
+    void restart(const AudioSetup& setup);
 
 private:
+    struct Queued {
+        TickAudio tick;
+        std::unique_ptr<AudioSetup> restart;  // applied before the tick, when set
+    };
+
     static void SDLCALL feed(void* self, SDL_AudioStream* stream, int additional, int total);
     void fill(SDL_AudioStream* stream, int bytes);
-    void render_next(std::vector<int16_t>& into, TickAudio& tick);
+    void render_next(std::vector<int16_t>& into, Queued& next);
 
     Synth synth_;                    // audio thread only
     std::vector<int16_t> pending_;   // audio thread only: rendered, not yet handed to SDL
     std::mutex mutex_;
-    std::deque<TickAudio> queue_;    // guarded by mutex_
+    std::deque<Queued> queue_;       // guarded by mutex_
+    std::unique_ptr<AudioSetup> restart_;  // simulation thread: for the next push
     SDL_AudioStream* stream_ = nullptr;
 };
 

@@ -33,6 +33,11 @@ struct ImportSource {
 bool load_import(const std::filesystem::path& host_dir, const std::string& spec, ImportSource& out,
                  std::string& error);
 
+struct CartSource;
+
+// The export `export_id` of a cart already read; false when its manifest has none by that id.
+bool import_from(const CartSource& cart, const std::string& export_id, ImportSource& out);
+
 // Copies imports' art and sounds into a cart, each at most once: tile blocks into sheet 3, packed
 // in rows of 32 tiles from its top-left; sfx into slots 48-63, with the instruments they use in
 // instruments 48-63. An sfx note that relied on the default instrument 0 is given the copy of
