@@ -37,6 +37,14 @@ TEST(options_run_windowed_with_tick_limit) {
     CHECK_EQ(r.opts.ticks, 120);
 }
 
+TEST(options_wav_needs_headless) {
+    const ParseResult r = parse({"run", "c", "--headless", "--ticks", "60", "--wav", "out.wav"});
+    CHECK(r.ok);
+    CHECK_EQ(r.opts.wav, std::string("out.wav"));
+    CHECK(!parse({"run", "c", "--wav", "out.wav"}).ok);
+    CHECK(!parse({"run", "c", "--headless", "--ticks", "60", "--wav"}).ok);
+}
+
 TEST(options_headless_requires_ticks) {
     CHECK(!parse({"run", "--headless"}).ok);
 }

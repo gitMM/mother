@@ -13,6 +13,7 @@ struct Options {
     std::string cart;     // empty: the built-in palette test pattern
     bool headless = false;
     int64_t ticks = -1;   // stop after this many ticks; -1 = until the window closes
+    std::string wav;      // headless: also write the rendered audio here
 };
 
 struct ParseResult {

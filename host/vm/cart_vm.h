@@ -6,6 +6,7 @@
 #include <set>
 #include <string>
 
+#include "audio/sequencer.h"
 #include "gfx/draw.h"
 #include "runner/program.h"
 #include "vm/cart_source.h"
@@ -33,14 +34,19 @@ public:
     void update(const PadState& pad, uint64_t tick) override;
     void draw(Framebuffer& fb) override;
     const Status& status() const override { return status_; }
+    const AudioSetup& audio_setup() const override { return source_.tracker.setup; }
+    void take_audio(TickAudio& out) override;
     int budget_errors() const { return budget_errors_; }
 
     // For the API bindings.
     static CartVM& of(lua_State* L);
     Painter& painter_in_draw(lua_State* L, const char* fn);  // errors outside cart.draw()
+    bool drawing() const { return painter_.drawing(); }
     const PadState& pad() const { return pad_; }
     TileMap& tilemap() { return source_.map; }
     const Ramps& ramps() const { return source_.art.ramps; }
+    TrackerData& tracker() { return source_.tracker; }
+    Sequencer& sequencer() { return sequencer_; }
     uint64_t ticks() const { return ticks_; }  // ticks started; 0 during cart.init
     void finish(Outcome outcome);
     void log(const std::string& line);
@@ -59,6 +65,8 @@ private:
     lua_State* L_ = nullptr;
     int api_ref_ = 0;
     CartSource source_;
+    Sequencer sequencer_{source_.tracker};
+    TickAudio audio_;  // this tick's audio commands
     Painter painter_;
     PadState pad_;
     uint64_t ticks_ = 0;

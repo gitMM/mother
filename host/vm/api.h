@@ -14,6 +14,7 @@ void open_gfx_api(lua_State* L);     // cls pset pget line rect rectfill circ ci
 void open_sprite_api(lua_State* L);  // spr sspr map palt ramp
 void open_map_api(lua_State* L);     // mget mset fget fset
 void open_input_api(lua_State* L);   // btn btnp stick pointer
+void open_audio_api(lua_State* L);   // sfx music stop beat song_get song_set
 void open_host_api(lua_State* L);    // mother.finish mother.log tick import
 
 // The cart's painter for a drawing function; raises a Luau error outside cart.draw().

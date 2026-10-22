@@ -269,6 +269,44 @@ TEST(cartvm_sprite_drawing_only_in_cart_draw) {
     CHECK(has(vm->status().message, "spr() can only be called from cart.draw()"));
 }
 
+TEST(cartvm_audio_api) {
+    const std::string trk = "sfx 3 2\nC-5 .. .. ...\n\nsong 1 4 loop\n0\n";
+    auto vm = open_main("audio_api", R"(
+        local ok = beat() == nil
+        local note, inst, vol, fx = song_get(0, 5, 2)
+        ok = ok and note == 0 and inst == -1 and vol == -1 and fx == "..."
+        song_set(0, 5, 2, 49, 1, 64, "V42")
+        note, inst, vol, fx = song_get(0, 5, 2)
+        ok = ok and note == 49 and inst == 1 and vol == 64 and fx == "V42"
+        song_set(0, 5, 2, -1, -1, -1, nil)
+        ok = ok and song_get(0, 5, 2) == -1
+        ok = ok and not pcall(song_set, 0, 5, 2, 97, 0, 0, nil) and not pcall(song_set, 0, 5, 2, 1, 0, 0, "X00")
+            and not pcall(song_get, 64, 0, 1) and not pcall(song_get, 0, 0, 7)
+        ok = ok and not pcall(sfx, 0) and not pcall(sfx, 3, 7) and not pcall(sfx, 3, 0) and not pcall(music, 0)
+            and not pcall(stop, 8) and not pcall(music, 1, -1)
+        local reserved = select(2, pcall(sfx, 3, 8))
+        ok = ok and string.find(reserved, "reserved") ~= nil
+        sfx(3)
+        sfx(3, 6)
+        music(1)
+        local bar, b, row = beat()
+        ok = ok and bar == 0 and b == 0 and row == 0
+        )" + lifecycle("", "if not ok then error(\"checks failed\") end", "if pcall(sfx, 3) then error(\"sfx in draw\") end"),
+                       {{"audio.trk", trk}});
+    CHECK(outcome(*vm) == Outcome::Running);
+    vm->update(PadState{}, 0);
+    CHECK(outcome(*vm) == Outcome::Running);
+    if (outcome(*vm) != Outcome::Running) std::printf("  %s\n", vm->status().message.c_str());
+    TickAudio audio;
+    vm->take_audio(audio);
+    int notes = 0;
+    for (const AudioCommand& c : audio) notes += c.kind == AudioCommand::Kind::NoteOn ? 1 : 0;
+    CHECK_EQ(notes, 2);  // the two sfx; song 1's pattern 0 is empty
+    Framebuffer fb;
+    vm->draw(fb);
+    CHECK(outcome(*vm) == Outcome::Running);
+}
+
 TEST(cartvm_logs_budget_errors) {
     auto vm = open_main("budget", lifecycle("", "local x = 0 for i = 1, 30000000 do x += 1 end"));
     vm->update(PadState{}, 0);

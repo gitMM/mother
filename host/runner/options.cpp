@@ -6,10 +6,11 @@
 namespace mother {
 
 const char* const kUsage =
-    "usage: mother run [cart] [--headless] [--ticks N]\n"
+    "usage: mother run [cart] [--headless] [--ticks N] [--wav FILE]\n"
     "  no cart      show the built-in palette test pattern\n"
-    "  --headless   no window or audio device; requires --ticks\n"
-    "  --ticks N    stop after N ticks\n";
+    "  --headless   no window or audio device; requires --ticks; prints a hash of the audio\n"
+    "  --ticks N    stop after N ticks\n"
+    "  --wav FILE   with --headless, also write the audio to FILE (48 kHz, 16-bit stereo)\n";
 
 namespace {
 
@@ -41,6 +42,9 @@ ParseResult parse_options(const std::vector<std::string>& args) {
             if (++i == args.size() || !parse_count(args[i], r.opts.ticks)) {
                 return fail("--ticks needs a non-negative integer");
             }
+        } else if (a == "--wav") {
+            if (++i == args.size() || args[i].empty()) return fail("--wav needs a file name");
+            r.opts.wav = args[i];
         } else if (a.starts_with("--")) {
             return fail("unknown option: " + a);
         } else if (r.opts.cart.empty()) {
@@ -50,6 +54,7 @@ ParseResult parse_options(const std::vector<std::string>& args) {
         }
     }
     if (r.opts.headless && r.opts.ticks < 0) return fail("--headless needs --ticks N");
+    if (!r.opts.wav.empty() && !r.opts.headless) return fail("--wav needs --headless");
     r.ok = true;
     return r;
 }

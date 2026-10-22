@@ -5,6 +5,7 @@
 #include <utility>
 #include <vector>
 
+#include "audio/wav.h"
 #include "runner/headless.h"
 #include "runner/options.h"
 #include "runner/test_pattern.h"
@@ -13,11 +14,34 @@
 
 namespace {
 
-// Runs prog in the requested mode, prints the result line and any cart error, and returns the
-// process exit code: 1 for an error, 0 otherwise.
+mother::RunResult run_headless(mother::Program& prog, const mother::Options& opts, bool& io_ok) {
+    if (opts.wav.empty()) return mother::run_headless(prog, uint64_t(opts.ticks));
+    mother::WavWriter wav;
+    if (!wav.open(opts.wav)) {
+        std::fprintf(stderr, "mother: could not write %s\n", opts.wav.c_str());
+        io_ok = false;
+        return {"error", 0};
+    }
+    const mother::RunResult r = mother::run_headless(
+        prog, uint64_t(opts.ticks), [&wav](const int16_t* samples, size_t count) { wav.write(samples, count); });
+    io_ok = wav.close();
+    if (!io_ok) std::fprintf(stderr, "mother: could not write %s\n", opts.wav.c_str());
+    return r;
+}
+
+// Runs prog in the requested mode, prints the result line (with the audio hash when headless)
+// and any cart error, and returns the process exit code: 1 for an error, 0 otherwise.
 int run(mother::Program& prog, const mother::Options& opts) {
-    const mother::RunResult r = opts.headless ? mother::run_headless(prog, uint64_t(opts.ticks))
-                                              : mother::run_windowed(prog, opts.ticks);
+    bool io_ok = true;
+    if (opts.headless) {
+        const mother::RunResult r = run_headless(prog, opts, io_ok);
+        std::printf("result=%s ticks=%" PRIu64 " audio=%016" PRIx64 "\n", r.result, r.ticks, r.audio_hash);
+        if (prog.status().outcome == mother::Outcome::Error) {
+            std::fprintf(stderr, "mother: cart error: %s\n", prog.status().message.c_str());
+        }
+        return std::strcmp(r.result, "error") == 0 || !io_ok ? 1 : 0;
+    }
+    const mother::RunResult r = mother::run_windowed(prog, opts.ticks);
     std::printf("result=%s ticks=%" PRIu64 "\n", r.result, r.ticks);
     if (prog.status().outcome == mother::Outcome::Error) {
         std::fprintf(stderr, "mother: cart error: %s\n", prog.status().message.c_str());

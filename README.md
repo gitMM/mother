@@ -19,15 +19,18 @@ Use the `debug` preset for a debug build. The binary is `build/<preset>/bin/moth
 ## Run
 
 ```
-mother run tests/carts/hello                       # a cart in a window
-mother run tests/carts/hello --headless --ticks 600  # no window or audio; prints result and ticks
+mother run tests/carts/song                        # a cart in a window, with sound
+mother run tests/carts/song --headless --ticks 600 # no window or audio device; prints the result,
+                                                   # tick count and a hash of the rendered audio
+mother run tests/carts/song --headless --ticks 600 --wav song.wav   # also write the audio
 mother run                                         # palette test pattern
 ```
 
 A cart is a folder with `cart.toml` and `main.luau` (plus any other `*.luau` modules, loaded with
 `import("name")`). `main.luau` defines `cart.init`, `cart.update`, `cart.draw` and `cart.hash`.
-Optional `sprites.spr` (sheets 0–2 and palette ramps) and `map.map` (two tile layers and tile
-flags) are plain text; their grammars are in `host/assets/spr_format.h` and `host/assets/map_format.h`.
+Optional `sprites.spr` (sheets 0–2 and palette ramps), `map.map` (two tile layers and tile flags)
+and `audio.trk` (instruments, wavetables, sfx, patterns, songs, global effects) are plain text;
+their grammars are in `host/assets/spr_format.h`, `map_format.h`, `trk_format.h` and `trk_cell.h`.
 
 Convert a PNG (up to 256×768, alpha below 128 is transparent) to sprite sheets:
 

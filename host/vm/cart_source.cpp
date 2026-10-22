@@ -5,6 +5,7 @@
 #include <system_error>
 
 #include "assets/map_format.h"
+#include "assets/trk_format.h"
 
 namespace mother {
 
@@ -88,6 +89,13 @@ bool load_cart_source(const fs::path& dir, CartSource& out, std::string& error) 
             return false;
         }
         if (!parse_map(text, "map.map", source.map, error)) return false;
+    }
+    if (fs::is_regular_file(dir / "audio.trk", ec)) {
+        if (!read_file(dir / "audio.trk", text)) {
+            error = "could not read " + (dir / "audio.trk").string();
+            return false;
+        }
+        if (!parse_trk(text, "audio.trk", source.tracker, error)) return false;
     }
     out = std::move(source);
     return true;

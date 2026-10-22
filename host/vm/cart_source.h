@@ -7,6 +7,7 @@
 
 #include "assets/spr_format.h"
 #include "assets/tilemap.h"
+#include "assets/tracker.h"
 
 namespace mother {
 
@@ -18,8 +19,9 @@ struct CartSource {
     // Every *.luau file in the folder itself (not subfolders), keyed by module name: the file
     // name without ".luau".
     std::map<std::string, std::string> modules;
-    SprData art;  // sprites.spr; empty sheets and no ramps when the file is absent
-    TileMap map;  // map.map; no layers and zero flags when the file is absent
+    SprData art;          // sprites.spr; empty sheets and no ramps when the file is absent
+    TileMap map;          // map.map; no layers and zero flags when the file is absent
+    TrackerData tracker;  // audio.trk; no songs or sfx when the file is absent
 };
 
 // Reads a cart folder. It must hold cart.toml and main.luau, every module name must be valid,

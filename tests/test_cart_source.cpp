@@ -59,7 +59,7 @@ TEST(cartsource_ignores_other_files) {
     CartSource src;
     std::string error;
     TempCart cart("other_files", {{"cart.toml", kTestToml}, {"main.luau", ""}, {"notes.txt", "x"},
-                                  {"audio.trk", "x"}, {"main.lua", "x"}});
+                                  {"art.png", "x"}, {"main.lua", "x"}});
     CHECK(load(cart.dir(), src, error));
     CHECK_EQ(src.modules.size(), size_t(1));
 }

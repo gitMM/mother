@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <string>
 
+#include "audio/commands.h"
 #include "gfx/framebuffer.h"
 #include "input/pad.h"
 
@@ -27,8 +28,9 @@ inline const char* result_name(Outcome outcome) {
 }
 
 struct RunResult {
-    const char* result;  // result_name(), or "error" when the runner itself failed
-    uint64_t ticks;      // ticks run
+    const char* result;       // result_name(), or "error" when the runner itself failed
+    uint64_t ticks;           // ticks run
+    uint64_t audio_hash = 0;  // headless only: FNV-1a 64 of every rendered sample
 };
 
 // What the host loop drives: a cart VM, or the built-in test pattern when no cart is given.
@@ -40,6 +42,13 @@ struct Program {
         static const Status running;
         return running;
     }
+    // The synth setup (wavetables, global effects) and, after each update, that tick's audio
+    // commands. The default is silence.
+    virtual const AudioSetup& audio_setup() const {
+        static const AudioSetup none;
+        return none;
+    }
+    virtual void take_audio(TickAudio& out) { out.clear(); }
 };
 
 }  // namespace mother

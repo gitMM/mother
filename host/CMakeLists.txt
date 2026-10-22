@@ -2,12 +2,19 @@
 add_library(mother_assets STATIC
     assets/map_format.cpp
     assets/spr_format.cpp
+    assets/trk_cell.cpp
+    assets/trk_format.cpp
     gfx/palette.cpp
 )
 target_include_directories(mother_assets PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_options(mother_assets PRIVATE ${MOTHER_WARNINGS})
 
 add_library(mother_host STATIC
+    audio/audio_out.cpp
+    audio/sequencer.cpp
+    audio/synth.cpp
+    audio/voice.cpp
+    audio/wav.cpp
     gfx/draw.cpp
     gfx/draw_sprite.cpp
     gfx/font.cpp
@@ -21,6 +28,7 @@ add_library(mother_host STATIC
     runner/test_pattern.cpp
     runner/windowed.cpp
     vm/api_args.cpp
+    vm/api_audio.cpp
     vm/api_gfx.cpp
     vm/api_host.cpp
     vm/api_input.cpp

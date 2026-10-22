@@ -2,6 +2,7 @@ set(MOTHER_TEST_MODULES
     palette framebuffer present pad keymap clock options pattern headless
     draw cart_source cart_vm
     spr_format map_format draw_sprite png2spr
+    trk_format synth sequencer
 )
 
 set(test_sources test_main.cpp)
@@ -29,7 +30,7 @@ set_tests_properties(cli.headless_3600 PROPERTIES PASS_REGULAR_EXPRESSION "^resu
 
 add_test(NAME cli.headless_repeatable
          COMMAND ${CMAKE_COMMAND} -DMOTHER=$<TARGET_FILE:mother> -DRUNS=3 -DTICKS=3600
-                 "-DEXPECT=^result=timeout ticks=3600$"
+                 "-DEXPECT=^result=timeout ticks=3600 audio=[0-9a-f]+$"
                  -P ${CMAKE_CURRENT_SOURCE_DIR}/headless_repeat.cmake)
 
 add_test(NAME cli.headless_needs_ticks COMMAND mother run --headless)
@@ -39,7 +40,7 @@ set_tests_properties(cli.headless_needs_ticks PROPERTIES WILL_FAIL TRUE)
 # the rest are out of reach.
 add_test(NAME cli.cart_hello
          COMMAND ${CMAKE_COMMAND} -DMOTHER=$<TARGET_FILE:mother> -DRUNS=2 -DTICKS=600
-                 -DCART=${carts}/hello "-DEXPECT=^result=timeout ticks=600$"
+                 -DCART=${carts}/hello "-DEXPECT=^result=timeout ticks=600 audio=[0-9a-f]+$"
                  -P ${CMAKE_CURRENT_SOURCE_DIR}/headless_repeat.cmake)
 
 add_test(NAME cli.cart_sandbox COMMAND mother run ${carts}/sandbox --headless --ticks 10)
@@ -60,3 +61,14 @@ set_tests_properties(cli.png2spr_usage PROPERTIES WILL_FAIL TRUE)
 
 add_test(NAME cli.cart_roundtrip COMMAND mother run ${carts}/roundtrip --headless --ticks 60)
 set_tests_properties(cli.cart_roundtrip PROPERTIES PASS_REGULAR_EXPRESSION "result=timeout ticks=60")
+
+# M3 acceptance: the test song renders headless to identical samples on every run. The hash is
+# pinned, so Debug and Release builds and every CI platform must render the very same samples.
+add_test(NAME cli.cart_song
+         COMMAND ${CMAKE_COMMAND} -DMOTHER=$<TARGET_FILE:mother> -DRUNS=3 -DTICKS=1200
+                 -DCART=${carts}/song "-DEXPECT=^result=timeout ticks=1200 audio=889c5b9269c72083$"
+                 -P ${CMAKE_CURRENT_SOURCE_DIR}/headless_repeat.cmake)
+
+add_test(NAME cli.cart_song_wav
+         COMMAND mother run ${carts}/song --headless --ticks 600 --wav ${CMAKE_CURRENT_BINARY_DIR}/song.wav)
+set_tests_properties(cli.cart_song_wav PROPERTIES PASS_REGULAR_EXPRESSION "result=timeout ticks=600")

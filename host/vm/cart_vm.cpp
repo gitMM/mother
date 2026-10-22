@@ -60,6 +60,7 @@ bool CartVM::open(CartSource source) {
     open_sprite_api(L_);
     open_map_api(L_);
     open_input_api(L_);
+    open_audio_api(L_);
     open_host_api(L_);
     luaL_sandbox(L_);  // freezes every library table, the API and the globals
 
@@ -100,6 +101,12 @@ void CartVM::update(const PadState& pad, uint64_t tick) {
     call("update");
     in_update_ = false;
     if (!budget_logged_ && std::chrono::steady_clock::now() - tick_start_ > kTickBudget) report_budget();
+    if (status_.outcome != Outcome::Error) sequencer_.tick(audio_);
+}
+
+void CartVM::take_audio(TickAudio& out) {
+    out.swap(audio_);
+    audio_.clear();
 }
 
 void CartVM::draw(Framebuffer& fb) {

@@ -44,4 +44,12 @@ inline bool parse_uint(std::string_view word, int& out) {
     return true;
 }
 
+// Parses a decimal integer with an optional leading '-' that fills the whole word.
+inline bool parse_int(std::string_view word, int& out) {
+    const bool negative = !word.empty() && word[0] == '-';
+    if (!parse_uint(negative ? word.substr(1) : word, out)) return false;
+    if (negative) out = -out;
+    return true;
+}
+
 }  // namespace mother

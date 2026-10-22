@@ -7,6 +7,7 @@
 #define SDL_MAIN_HANDLED  // main() is ours; SDL_main.h only declares SDL_SetMainReady
 #include <SDL3/SDL_main.h>
 
+#include "audio/audio_out.h"
 #include "gfx/present.h"
 #include "input/keymap.h"
 #include "runner/clock.h"
@@ -96,6 +97,8 @@ RunResult run_loop(Program& prog, int64_t max_ticks, Video& video) {
     Framebuffer fb;
     std::vector<uint32_t> argb(size_t(kScreenW * kScreenH));
     SDL_Gamepad* gamepad = nullptr;
+    AudioOut audio(prog.audio_setup());
+    TickAudio commands;
     TickClock clock;
     PadState pad;
     uint64_t ticks = 0;
@@ -114,6 +117,8 @@ RunResult run_loop(Program& prog, int64_t max_ticks, Video& video) {
             pad = build_pad(raw, pad);
             prog.update(pad, ticks);
             ++ticks;
+            prog.take_audio(commands);
+            audio.push(commands);
         }
         if (prog.status().outcome != Outcome::Running) break;
         prog.draw(fb);
