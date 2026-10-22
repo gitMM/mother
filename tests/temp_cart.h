@@ -34,7 +34,28 @@ private:
     std::filesystem::path dir_;
 };
 
-inline const char* const kTestToml = "[cart]\nid = \"test\"\n";
+// A cart.toml for test carts: Toml{}.text() is the plainest valid manifest; set fields to change
+// [env] values, the [objective] body, or add sections after it.
+struct Toml {
+    std::string gravity = "none", surface = "none", scroll = "none", avatar = "none", spawn = "none";
+    std::string deploy = "false";
+    std::string bounds = "solid";  // all four edges, or a whole inline table starting with '{'
+    std::string objective = "type = \"survive\"\nticks = 36000";
+    std::string extra;  // more sections: [avatar], [[spawn_points]], [[exports]]
+
+    std::string text() const {
+        const std::string b = bounds.rfind('{', 0) == 0
+                                  ? bounds
+                                  : "{ left = \"" + bounds + "\", right = \"" + bounds + "\", top = \"" + bounds +
+                                        "\", bottom = \"" + bounds + "\" }";
+        return "[cart]\nid = \"test\"\ntitle = \"TEST\"\nfamily = \"action\"\n\n[env]\ngravity = \"" + gravity +
+               "\"\nsurface = \"" + surface + "\"\nscroll = \"" + scroll + "\"\navatar = \"" + avatar +
+               "\"\nspawn = \"" + spawn + "\"\ndeploy = " + deploy + "\nbounds = " + b + "\n\n[objective]\n" +
+               objective + "\n" + extra;
+    }
+};
+
+inline const std::string kTestToml = Toml{}.text();
 
 // A .map flags section: 3072 lines of "00", except tile `tile`, which gets `hex`.
 inline std::string flags_block(int tile = -1, const char* hex = "00") {

@@ -36,6 +36,11 @@ int boot(lua_State* L) {
     return 0;
 }
 
+int boot_lib(lua_State* L) {
+    CartVM::of(L).open_lib(L);
+    return 0;
+}
+
 }  // namespace
 
 CartVM::~CartVM() {
@@ -66,16 +71,20 @@ bool CartVM::open(CartSource source, uint64_t seed) {
     open_audio_api(L_);
     open_math_api(L_);
     open_host_api(L_);
-    luaL_sandbox(L_);  // freezes every library table, the API and the globals
+    lua_pushvalue(L_, LUA_GLOBALSINDEX);
+    api_ref_ = lua_ref(L_, -1);
+    lua_pop(L_, 1);
+
+    // MOTHERLIB creates the world from cart.toml before any cart code runs.
+    lua_pushcfunction(L_, boot_lib, "motherlib");
+    if (!protected_call(0)) return false;
+    luaL_sandbox(L_);  // freezes every library table, the API, `world` and the globals
 
     // `cart` is the one writable table: main.luau fills in its lifecycle functions.
     lua_setreadonly(L_, LUA_GLOBALSINDEX, false);
     lua_newtable(L_);
     lua_setglobal(L_, "cart");
     lua_setreadonly(L_, LUA_GLOBALSINDEX, true);
-    lua_pushvalue(L_, LUA_GLOBALSINDEX);
-    api_ref_ = lua_ref(L_, -1);
-    lua_pop(L_, 1);
 
     lua_pushcfunction(L_, boot, "boot");
     if (!protected_call(0)) return false;
@@ -102,7 +111,10 @@ void CartVM::update(const PadState& pad, uint64_t tick) {
     budget_logged_ = false;
     tick_start_ = std::chrono::steady_clock::now();
     in_update_ = true;
-    call("update");
+    if (call("update")) {
+        lua_getref(L_, lib_.step_ref());  // world:step()
+        protected_call(0);
+    }
     in_update_ = false;
     if (!budget_logged_ && std::chrono::steady_clock::now() - tick_start_ > kTickBudget) report_budget();
     if (status_.outcome == Outcome::Error) return;
@@ -111,6 +123,9 @@ void CartVM::update(const PadState& pad, uint64_t tick) {
 }
 
 void CartVM::update_hash() {
+    lua_getref(L_, lib_.hash_ref());
+    if (!protected_call(0, 2)) return;
+    const uint64_t world_hash = Motherlib::take_hash(L_);
     if (!call("hash", 1)) return;
     if (lua_type(L_, -1) != LUA_TNUMBER) {
         lua_pop(L_, 1);
@@ -123,6 +138,7 @@ void CartVM::update_hash() {
     h.u64(ticks_);
     for (uint32_t word : rng_.state()) h.u32(word);
     h.u64(source_.map.hash);
+    h.u64(world_hash);
     h.number(cart_value);
     state_hash_ = h.value();
 }
@@ -155,6 +171,10 @@ void CartVM::log(const std::string& line) {
 
 void CartVM::run_main(lua_State* L) {
     run_module(L, "main");
+}
+
+void CartVM::open_lib(lua_State* L) {
+    lib_.open(L, api_ref_, source_.manifest);
 }
 
 int CartVM::import_module(lua_State* L, const char* name) {
@@ -201,7 +221,7 @@ void CartVM::check_budget() {
 void CartVM::report_budget() {
     budget_logged_ = true;
     ++budget_errors_;
-    std::fprintf(stderr, "budget error: tick %" PRIu64 ": cart.update ran over %d ms\n", ticks_,
+    std::fprintf(stderr, "budget error: tick %" PRIu64 ": cart.update and world:step ran over %d ms\n", ticks_,
                  int(kTickBudget.count()));
 }
 

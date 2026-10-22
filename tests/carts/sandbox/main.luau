@@ -62,6 +62,11 @@ expect(fails(tri) and fails(mesh) and fails(cam3d), "a 3D stub did not raise")
 expect(fails(cls, 0), "cls() works outside cart.draw()")
 expect(fails(spr, 0, 0, 0) and fails(map, 0, 0, 0, 0, 1, 1), "sprites draw outside cart.draw()")
 
+-- MOTHERLIB: the world table is frozen and its internals are out of reach.
+expect(type(world) == "table" and fails(function() world.spawn = nil end), "the world table is writable")
+expect(world.step == nil and world.create == nil and world.hash == nil, "world internals are reachable")
+expect(use == nil and host == nil, "MOTHERLIB's private globals are reachable")
+
 -- The heap is capped at 16 MB.
 expect(fails(string.rep, "x", 32 * 1024 * 1024), "a 32 MB string fit in the heap")
 

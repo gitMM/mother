@@ -1,0 +1,40 @@
+[cart]
+id = "world"
+title = "WORLD"
+family = "action"
+
+[env]
+gravity = "none"
+surface = "ground"
+scroll = "none"
+avatar = "8dir"
+spawn = "world"
+deploy = false
+bounds = { left = "solid", right = "solid", top = "solid", bottom = "solid" }
+
+[objective]
+type = "kill_all"
+
+[avatar]
+archetype = "dummy"
+damage = "hp"
+hp = 30
+x = 160
+y = 90
+params = { colour = 63 }
+
+[[spawn_points]]
+x = 12
+y = 12
+
+[[spawn_points]]
+x = 308
+y = 12
+
+[[spawn_points]]
+x = 12
+y = 168
+
+[[spawn_points]]
+x = 308
+y = 168

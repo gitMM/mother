@@ -19,7 +19,7 @@ Use the `debug` preset for a debug build. The binary is `build/<preset>/bin/moth
 ## Run
 
 ```
-mother run tests/carts/dice                        # a cart in a window, with sound
+mother run tests/carts/world                       # a cart in a window, with sound
 mother run tests/carts/dice --headless --ticks 18000 --input fuzz:42 --seed 7
                                                    # no window or audio device; fuzzed input
 mother run tests/carts/song --headless --ticks 600 --wav song.wav   # also write the audio
@@ -36,6 +36,13 @@ CI replays them on Windows, macOS and Linux.
 
 A cart is a folder with `cart.toml` and `main.luau` (plus any other `*.luau` modules, loaded with
 `import("name")`). `main.luau` defines `cart.init`, `cart.update`, `cart.draw` and `cart.hash`.
+`cart.toml` is the manifest: `[cart]`, `[env]`, `[objective]`, and `[avatar]`, `[[spawn_points]]`
+and `[[exports]]` as the env requires; its schema is in `host/assets/manifest.h`.
+
+Everything that moves, collides or takes damage lives in the MOTHERLIB world (`lib/`, Luau, built
+into the binary): `world:spawn`, `get`, `query`, `nearest`, `damage`, `status`, `on`, `spawner`,
+`avatar`, `camera` and `draw`, documented in `lib/core/world.luau`. Archetypes are modules in
+`lib/archetypes/`; their format is in `lib/core/archetypes.luau`.
 Optional `sprites.spr` (sheets 0–2 and palette ramps), `map.map` (two tile layers and tile flags)
 and `audio.trk` (instruments, wavetables, sfx, patterns, songs, global effects) are plain text;
 their grammars are in `host/assets/spr_format.h`, `map_format.h`, `trk_format.h` and `trk_cell.h`.

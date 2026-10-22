@@ -2,3 +2,16 @@
 id = "dice"
 title = "DICE"
 family = "action"
+
+[env]
+gravity = "none"
+surface = "none"
+scroll = "none"
+avatar = "none"
+spawn = "none"
+deploy = false
+bounds = { left = "solid", right = "solid", top = "solid", bottom = "solid" }
+
+[objective]
+type = "survive"
+ticks = 36000

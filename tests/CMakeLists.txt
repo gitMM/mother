@@ -4,6 +4,7 @@ set(MOTHER_TEST_MODULES
     spr_format map_format draw_sprite png2spr
     trk_format synth sequencer
     rng fixed_math fuzz trace
+    toml manifest world collision damage spawn bounds objective
 )
 
 set(test_sources test_main.cpp)
@@ -76,7 +77,7 @@ set_tests_properties(cli.cart_song_wav PROPERTIES PASS_REGULAR_EXPRESSION "resul
 
 # M4 acceptance: one stored trace per cart, recorded once from fuzz input. Replaying it must
 # reproduce every tick's state hash, on every build and every CI platform.
-foreach(cart dice hello song roundtrip sandbox)
+foreach(cart dice hello song roundtrip sandbox world)
     add_test(NAME cli.replay_${cart}
              COMMAND mother replay ${carts}/${cart} ${CMAKE_CURRENT_SOURCE_DIR}/traces/${cart}.trace)
     set_tests_properties(cli.replay_${cart} PROPERTIES PASS_REGULAR_EXPRESSION "replay=ok")
@@ -87,6 +88,14 @@ add_test(NAME cli.fuzz_repeatable
          COMMAND ${CMAKE_COMMAND} -DMOTHER=$<TARGET_FILE:mother> -DRUNS=2 -DTICKS=3000
                  -DCART=${carts}/dice "-DARGS=--input;fuzz:11;--seed;12"
                  "-DEXPECT=^result=timeout ticks=3000 seed=12 budget=0 hash=[0-9a-f]+ audio=[0-9a-f]+$"
+                 -P ${CMAKE_CURRENT_SOURCE_DIR}/headless_repeat.cmake)
+
+# M5: the MOTHERLIB smoke cart runs 10 minutes under fuzz input, twice alike, with no errors or
+# budget overruns.
+add_test(NAME cli.cart_world_fuzz
+         COMMAND ${CMAKE_COMMAND} -DMOTHER=$<TARGET_FILE:mother> -DRUNS=2 -DTICKS=36000
+                 -DCART=${carts}/world "-DARGS=--input;fuzz:2;--seed;2"
+                 "-DEXPECT=^result=(win|lose|timeout) ticks=[0-9]+ seed=2 budget=0 hash=[0-9a-f]+ audio=[0-9a-f]+$"
                  -P ${CMAKE_CURRENT_SOURCE_DIR}/headless_repeat.cmake)
 
 add_test(NAME cli.record_then_replay

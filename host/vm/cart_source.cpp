@@ -4,6 +4,7 @@
 #include <iterator>
 #include <system_error>
 
+#include "assets/manifest.h"
 #include "assets/map_format.h"
 #include "assets/trk_format.h"
 
@@ -44,6 +45,13 @@ bool load_cart_source(const fs::path& dir, CartSource& out, std::string& error) 
 
     CartSource source;
     source.dir = dir;
+    std::string toml;
+    if (!read_file(dir / "cart.toml", toml)) {
+        error = "could not read " + (dir / "cart.toml").string();
+        return false;
+    }
+    if (!parse_manifest(toml, "cart.toml", source.manifest, error)) return false;
+
     size_t total = 0;
     for (const fs::directory_entry& entry : fs::directory_iterator(dir, ec)) {
         if (!entry.is_regular_file(ec) || entry.path().extension() != ".luau") continue;

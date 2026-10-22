@@ -11,6 +11,7 @@
 #include "runtime/rng.h"
 #include "runner/program.h"
 #include "vm/cart_source.h"
+#include "vm/motherlib.h"
 #include "vm/sandbox.h"
 
 struct lua_State;
@@ -28,19 +29,19 @@ public:
     CartVM(const CartVM&) = delete;
     CartVM& operator=(const CartVM&) = delete;
 
-    // Seeds the RNG, runs main.luau, checks that it defined cart.init, cart.update, cart.draw and
-    // cart.hash as functions, then calls cart.init. On failure status() holds the error and it
-    // returns false.
+    // Seeds the RNG, loads MOTHERLIB and creates the world from cart.toml, runs main.luau,
+    // checks that it defined cart.init, cart.update, cart.draw and cart.hash as functions, then
+    // calls cart.init. On failure status() holds the error and it returns false.
     bool open(CartSource source, uint64_t seed = 0);
 
-    // One tick: cart.update, then the audio sequencer, then the state hash.
+    // One tick: cart.update, world:step(), the audio sequencer, then the state hash.
     void update(const PadState& pad, uint64_t tick) override;
     void draw(Framebuffer& fb) override;
     const Status& status() const override { return status_; }
     const AudioSetup& audio_setup() const override { return source_.tracker.setup; }
     void take_audio(TickAudio& out) override;
-    // FNV-1a 64 over the tick count, the RNG state, the tilemap hash and cart.hash()'s value
-    // (and the MOTHERLIB world from M5).
+    // FNV-1a 64 over the tick count, the RNG state, the tilemap hash, the world's state and
+    // cart.hash()'s value.
     uint64_t state_hash() const override { return state_hash_; }
     int budget_errors() const override { return budget_errors_; }
 
@@ -54,11 +55,13 @@ public:
     TrackerData& tracker() { return source_.tracker; }
     Sequencer& sequencer() { return sequencer_; }
     Rng& rng() { return rng_; }
+    Motherlib& lib() { return lib_; }
     uint64_t ticks() const { return ticks_; }  // ticks started; 0 during cart.init
     void finish(Outcome outcome);
     void log(const std::string& line);
     int import_module(lua_State* L, const char* name);  // pushes the module's value
     void run_main(lua_State* L);                         // runs main.luau, from open()
+    void open_lib(lua_State* L);                         // loads MOTHERLIB, from open()
     void check_budget();                                 // from the interrupt callback
 
 private:
@@ -76,6 +79,7 @@ private:
     Sequencer sequencer_{source_.tracker};
     TickAudio audio_;  // this tick's audio commands
     Rng rng_;
+    Motherlib lib_;
     uint64_t state_hash_ = 0;
     Painter painter_;
     PadState pad_;
