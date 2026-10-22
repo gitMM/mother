@@ -58,7 +58,7 @@ return {
     on_block = function(e, nx, ny)
         if nx ~= 0 then
             e.fx, e.vx = nx, 0
-            act.sound(e.params.sfx_bump)
+            act.sound(e, e.params.sfx_bump)
         else
             e.vy = 0
         end

@@ -5,7 +5,8 @@
 #include "vm/cart_vm.h"
 
 // Tilemap and tile-flag access. Unlike drawing, these work anywhere: the tilemap is simulation
-// state (damageable tiles, BLOCKFALL's well).
+// state (damageable tiles, BLOCKFALL's well). Tiles are 0-4095: sheet 3's are imports' (map.map
+// itself holds 0-3071).
 
 namespace mother {
 
@@ -19,7 +20,7 @@ namespace {
 
 int arg_tile(lua_State* L, int idx, const char* fn) {
     const int tile = arg_coord(L, idx);
-    if (tile < 0 || tile >= kCartTiles) luaL_error(L, "%s: tile must be 0-%d, got %d", fn, kCartTiles - 1, tile);
+    if (tile < 0 || tile >= kSpriteCount) luaL_error(L, "%s: tile must be 0-%d, got %d", fn, kSpriteCount - 1, tile);
     return tile;
 }
 

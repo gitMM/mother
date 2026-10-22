@@ -59,12 +59,12 @@ return {
             tier = p.tier,
             sprite = p.missile_sprite,
         }, h.x + h.fx * front, h.y + h.fy * front, e.faction)
-        act.sound(p.sfx_fire)
+        act.sound(e, p.sfx_fire)
     end,
 
     on_contact = function(e, other)
         if equip.take(e, other) then
-            act.sound(e.params.sfx_take)
+            act.sound(e, e.params.sfx_take)
         end
     end,
 

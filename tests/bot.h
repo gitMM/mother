@@ -2,13 +2,16 @@
 
 // Plays a real cart with input from a bot: a Luau function that runs inside the cart's VM between
 // ticks, reads the world (world:get, world:query, ...) and returns the pad for the next tick as
-// (stick x, stick y, buttons), with x and y in -1..1 and buttons a string of a b l r s(tart).
-// It only reads, so the cart runs exactly as it would with that input from a player.
+// (stick x, stick y, buttons), with x and y in -1..1 and buttons a string of a b x y l r s(tart).
+// It only reads, so the cart runs exactly as it would with that input from a player. The cart
+// may run with imports (SOURCE:EXPORT, as for mother import); a bot that raises an error ends the
+// run with it, so bots can check what they see.
 
 #include <cmath>
 #include <cstdio>
 #include <filesystem>
 #include <string>
+#include <vector>
 
 #include "lua.h"
 #include "lualib.h"
@@ -21,15 +24,24 @@ struct BotRun {
     uint64_t ticks = 0;
     uint64_t hash = 0;  // the state hash after the last tick
     std::string message;
+    std::string refused;       // why the cart couldn't take an import
+    unsigned voices = 0;       // bit v: some note started on voice v + 1
+    mother::Framebuffer fb;    // after the last draw
 };
 
-inline BotRun play(const std::filesystem::path& cart, const std::string& bot, int max_ticks, uint64_t seed = 0) {
+inline BotRun play(const std::filesystem::path& cart, const std::string& bot, int max_ticks, uint64_t seed = 0,
+                   const std::vector<std::string>& imports = {}) {
     BotRun out;
     mother::CartSource source;
     if (!mother::load_cart_source(cart, source, out.message)) return out;
+    std::vector<mother::ImportSource> sources(imports.size());
+    for (size_t i = 0; i < imports.size(); ++i) {
+        if (!mother::load_import(cart, imports[i], sources[i], out.message)) return out;
+    }
     mother::CartVM vm;
-    if (!vm.open(std::move(source), seed)) {
+    if (!vm.open(std::move(source), seed, std::move(sources))) {
         out.message = vm.status().message;
+        out.refused = vm.incompatible();
         return out;
     }
     lua_State* L = vm.state();
@@ -45,7 +57,7 @@ inline BotRun play(const std::filesystem::path& cart, const std::string& bot, in
     lua_pop(L, 1);
 
     mother::PadState pad;
-    mother::Framebuffer fb;
+    mother::TickAudio audio;
     for (int t = 0; t < max_ticks && vm.status().outcome == mother::Outcome::Running; ++t) {
         lua_getref(L, fn);
         lua_pushinteger(L, t);
@@ -59,14 +71,18 @@ inline BotRun play(const std::filesystem::path& cart, const std::string& bot, in
         const char* keys = lua_tostring(L, -1);
         for (const char* k = keys ? keys : ""; *k; ++k) {
             using mother::Button;
-            const Button b = *k == 'a' ? Button::A : *k == 'b' ? Button::B : *k == 'l' ? Button::L
-                           : *k == 'r' ? Button::R : Button::Start;
+            const Button b = *k == 'a' ? Button::A : *k == 'b' ? Button::B : *k == 'x' ? Button::X
+                           : *k == 'y' ? Button::Y : *k == 'l' ? Button::L : *k == 'r' ? Button::R : Button::Start;
             raw.buttons[mother::face_index(b)] = true;
         }
         lua_pop(L, 3);
         pad = mother::build_pad(raw, pad);
         vm.update(pad, uint64_t(t));
-        vm.draw(fb);
+        vm.take_audio(audio);
+        for (const mother::AudioCommand& c : audio) {
+            if (c.kind == mother::AudioCommand::Kind::NoteOn) out.voices |= 1u << c.voice;
+        }
+        vm.draw(out.fb);
         out.ticks = uint64_t(t) + 1;
     }
     out.outcome = vm.status().outcome;

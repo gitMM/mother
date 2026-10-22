@@ -5,12 +5,14 @@
 #include <map>
 #include <set>
 #include <string>
+#include <vector>
 
 #include "audio/sequencer.h"
 #include "gfx/draw.h"
 #include "runtime/rng.h"
 #include "runner/program.h"
 #include "vm/cart_source.h"
+#include "vm/imports.h"
 #include "vm/motherlib.h"
 #include "vm/sandbox.h"
 
@@ -29,10 +31,12 @@ public:
     CartVM(const CartVM&) = delete;
     CartVM& operator=(const CartVM&) = delete;
 
-    // Seeds the RNG, loads MOTHERLIB and creates the world from cart.toml, runs main.luau,
-    // checks that it defined cart.init, cart.update, cart.draw and cart.hash as functions, then
-    // calls cart.init. On failure status() holds the error and it returns false.
-    bool open(CartSource source, uint64_t seed = 0);
+    // Seeds the RNG, loads MOTHERLIB and creates the world from cart.toml, adds the imports,
+    // runs main.luau, checks that it defined cart.init, cart.update, cart.draw and cart.hash as
+    // functions, then calls cart.init. On failure status() holds the error and it returns false;
+    // incompatible() then says why the cart can't take an import, if that was the reason.
+    bool open(CartSource source, uint64_t seed = 0, std::vector<ImportSource> imports = {});
+    const std::string& incompatible() const { return incompatible_; }
 
     // One tick: cart.update, world:step(), the audio sequencer, then the state hash.
     void update(const PadState& pad, uint64_t tick) override;
@@ -47,6 +51,10 @@ public:
 
     // The cart's Luau state, for tests that read the world between ticks (e.g. input bots).
     lua_State* state() const { return L_; }
+    // The matrix test's checks after the latest tick; false (and an error status) if it failed.
+    bool audit(WorldAudit& out);
+    // Every MOTHERLIB archetype's declarations; empty if it failed.
+    std::vector<ArchetypeInfo> describe();
 
     // For the API bindings.
     static CartVM& of(lua_State* L);
@@ -66,6 +74,11 @@ public:
     void run_main(lua_State* L);                         // runs main.luau, from open()
     void open_lib(lua_State* L);                         // loads MOTHERLIB, from open()
     void check_budget();                                 // from the interrupt callback
+    // For MOTHERLIB's host functions while an import is being added (Luau errors otherwise).
+    int import_tiles(lua_State* L, int tile, int w, int h);
+    int import_sfx(lua_State* L, int n);
+    // Queues a Mother Gold outline, in drawing coordinates, during cart.draw().
+    void outline(int x, int y, int w, int h);
 
 private:
     void run_module(lua_State* L, const std::string& name);  // pushes its first result
@@ -74,6 +87,10 @@ private:
     void update_hash();
     void fail(std::string message);
     void report_budget();
+
+    struct Outline {
+        int x, y, w, h;  // screen pixels
+    };
 
     Heap heap_;
     lua_State* L_ = nullptr;
@@ -88,6 +105,11 @@ private:
     PadState pad_;
     uint64_t ticks_ = 0;
     Status status_;
+    std::vector<ImportSource> imports_;
+    const ImportSource* adding_ = nullptr;  // the import being added
+    ImportAssets import_assets_;
+    std::string incompatible_;
+    std::vector<Outline> outlines_;        // this frame's
     std::map<std::string, int> imported_;  // module name -> registry ref of its value
     std::set<std::string> importing_;      // modules being loaded, for cycle errors
     std::chrono::steady_clock::time_point tick_start_;

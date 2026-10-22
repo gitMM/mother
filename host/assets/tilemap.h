@@ -13,15 +13,16 @@ constexpr int kMaxMapSize = 256;  // tiles per side
 
 struct TileLayer {
     int w = 0, h = 0;
-    std::vector<uint16_t> cells;  // row-major tile indices, 0-3071
+    std::vector<uint16_t> cells;  // row-major tile indices: 0-3071 from map.map, 0-4095 at run time
 };
 
-// A cart's tilemap: two layers of up to 256x256 tiles, plus 8 flag bits per tile index. It keeps
+// A cart's tilemap: two layers of up to 256x256 tiles, plus 8 flag bits per tile index (0-4095:
+// sheet 3's tiles are imports', which MOTHERLIB places and flags at run time). It keeps
 // a Zobrist hash of its contents (an XOR of one key per cell and per flag byte) that set() and
 // set_flags() update in O(1), so the per-tick state hash can include the tilemap cheaply.
 struct TileMap {
     std::array<TileLayer, kMapLayers> layers;
-    std::array<uint8_t, kCartTiles> flags{};
+    std::array<uint8_t, kSpriteCount> flags{};
     uint64_t hash = 0;  // valid after rehash(); kept current by set() and set_flags()
 
     // Tile at (x, y); 0 outside the layer or for a layer number other than 0 and 1.
@@ -34,7 +35,7 @@ struct TileMap {
 
     // Sets the tile at (x, y); does nothing outside the layer.
     void set(int layer, int x, int y, uint16_t tile);
-    void set_flags(int tile, uint8_t value);  // tile 0-3071
+    void set_flags(int tile, uint8_t value);  // tile 0-4095
     // Recomputes the hash from scratch, after the layers or flags were filled in directly.
     void rehash();
 };

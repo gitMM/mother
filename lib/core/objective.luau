@@ -74,7 +74,50 @@ local function met()
     return true, nil
 end
 
+-- The objective's progress, for the matrix test: S.progress only grows, by one for each counted
+-- entity (or spawn still to come) fewer than the step before under kill_all and collect, each
+-- step under survive, and each px the avatar gets nearer the exit than ever under escape. Under
+-- race, core/race.luau adds one for each racing-line point a counted racer passes.
+local function note_progress()
+    local o = S.objective
+    if o.type == "survive" then
+        if S.started ~= nil then
+            S.progress += 1
+        end
+    elseif o.type == "escape" then
+        local a, x = S.avatar, o.exit
+        if entity.live(a) then
+            local dx = math.max(x.x - (a.x + a.hw), a.x - a.hw - (x.x + x.w), 0)
+            local dy = math.max(x.y - (a.y + a.hh), a.y - a.hh - (x.y + x.h), 0)
+            local d = math.sqrt(dx * dx + dy * dy)
+            if d <= S.best_exit - 1 then
+                S.progress += 1
+                S.best_exit = d
+            end
+        end
+    elseif o.type ~= "race" then
+        local n = 0
+        for _, e in S.list do
+            if entity.live(e) and objective.counts(e) then
+                n += 1
+            end
+        end
+        if o.type == "kill_all" then
+            for _, sp in S.spawners do
+                if sp.faction == "host" then
+                    n += sp.left
+                end
+            end
+        end
+        if S.last_count ~= nil and n < S.last_count then
+            S.progress += S.last_count - n
+        end
+        S.last_count = n
+    end
+end
+
 function objective.check()
+    note_progress()
     local done, who = met()
     if done and not S.objective_met then
         events.emit("objective", S.objective.type, who)

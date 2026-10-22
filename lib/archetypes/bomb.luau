@@ -58,7 +58,7 @@ return {
         if m.fuse <= 0 then
             m.blast = BLAST_TICKS
             melee.blast(e, p.radius, p.tier)
-            act.sound(p.sfx_blast)
+            act.sound(e, p.sfx_blast)
         end
     end,
 

@@ -59,6 +59,8 @@ function entity.new(id, name, def, params, x, y, faction, tick)
         down = false,
 
         entered = false, -- has overlapped the bounds, so the edges apply to it
+        out = 0, -- steps wholly outside the bounds (core/imports.luau's audit)
+        decay = 0, -- an imported solid: the step it decays at (0: never)
         ghost = false, -- out of play for now: no contacts, blocking, queries or bounds
         dead = false,
         gone = false, -- removed without dying

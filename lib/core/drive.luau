@@ -88,7 +88,7 @@ end
 function drive.rammed(e, other)
     if other.hurt == units.hurt_ticks and other.src_x == e.x and other.src_y == e.y then
         status.apply(other, "knockback", RAM_KNOCKBACK)
-        act.sound(e.params.sfx_ram)
+        act.sound(e, e.params.sfx_ram)
     end
 end
 

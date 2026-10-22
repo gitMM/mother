@@ -10,6 +10,8 @@ const char* const kUsage =
     "  mother run [CART] [--headless --ticks N] [--seed S] [--input fuzz:S|trace:FILE] [--wav FILE]\n"
     "  mother record CART OUT.trace [--headless --ticks N] [--seed S] [--input fuzz:S]\n"
     "  mother replay CART TRACE [--hash]\n"
+    "  mother import CART SOURCE:EXPORT [SOURCE:EXPORT ...] [the options of run]\n"
+    "  mother matrix [CARTS] [--out FILE] [--seeds N] [--ticks N]\n"
     "\n"
     "  run with no CART shows the built-in palette test pattern\n"
     "  --headless   no window or audio device; needs --ticks unless the input is a trace\n"
@@ -17,7 +19,12 @@ const char* const kUsage =
     "  --seed S     the cart's RNG seed (default: 0 headless, the clock in a window)\n"
     "  --input      fuzz:S plays seeded random input; trace:FILE plays a trace's input and seed\n"
     "  --wav FILE   with --headless, also write the audio (48 kHz, 16-bit stereo)\n"
-    "  --hash       replay: print every tick's state hash\n";
+    "  --hash       replay: print every tick's state hash\n"
+    "  import       runs CART with up to 3 exports of other carts (SOURCE: a cart folder next to\n"
+    "               CART, or a path); exits 3 when CART can't take one, saying why\n"
+    "  matrix       every export of every cart in CARTS (default carts) against every other cart:\n"
+    "               writes the table to --out (default matrix.md) and runs each compatible pair\n"
+    "               for --seeds (3) fuzz seeds of --ticks (36000) ticks, checked; exits 1 on a failure\n";
 
 namespace {
 
@@ -41,7 +48,8 @@ ParseResult parse_options(const std::vector<std::string>& args) {
     ParseResult r;
     Options& o = r.opts;
     o.command = args[0];
-    if (o.command != "run" && o.command != "record" && o.command != "replay") {
+    if (o.command != "run" && o.command != "record" && o.command != "replay" && o.command != "import" &&
+        o.command != "matrix") {
         return fail("unknown command: " + o.command);
     }
 
@@ -70,6 +78,11 @@ ParseResult parse_options(const std::vector<std::string>& args) {
             } else {
                 return fail("--input needs fuzz:SEED or trace:FILE");
             }
+        } else if (a == "--out") {
+            if (!has_value || args[i + 1].empty()) return fail("--out needs a file name");
+            o.out = args[++i];
+        } else if (a == "--seeds") {
+            if (!has_value || !parse_number(args[++i], o.seeds) || o.seeds < 1) return fail("--seeds needs a positive integer");
         } else if (a == "--wav") {
             if (!has_value || args[i + 1].empty()) return fail("--wav needs a file name");
             o.wav = args[++i];
@@ -80,9 +93,26 @@ ParseResult parse_options(const std::vector<std::string>& args) {
         }
     }
 
+    if (o.command == "matrix") {
+        if (positional.size() > 1) return fail("unexpected argument: " + positional[1]);
+        o.cart = positional.empty() ? "carts" : positional[0];
+        if (o.ticks < 0) o.ticks = 36000;
+        if (o.headless || o.print_hashes || o.has_seed || o.input != InputKind::Live || !o.wav.empty()) {
+            return fail("matrix takes only CARTS, --out, --seeds and --ticks");
+        }
+        o.headless = true;
+        r.ok = true;
+        return r;
+    }
+    if (o.out != "matrix.md" || o.seeds != 3) return fail("--out and --seeds only go with matrix");
     if (o.command == "run") {
         if (positional.size() > 1) return fail("unexpected argument: " + positional[1]);
         if (!positional.empty()) o.cart = positional[0];
+    } else if (o.command == "import") {
+        if (positional.size() < 2) return fail("import needs a cart and at least one SOURCE:EXPORT");
+        if (positional.size() > 4) return fail("import takes at most 3 exports");
+        o.cart = positional[0];
+        o.imports.assign(positional.begin() + 1, positional.end());
     } else {
         if (positional.size() != 2) return fail(o.command + " needs a cart and a trace file");
         o.cart = positional[0];

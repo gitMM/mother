@@ -41,6 +41,16 @@ int boot_lib(lua_State* L) {
     return 0;
 }
 
+int audit_world(lua_State* L) {
+    *static_cast<WorldAudit*>(lua_tolightuserdata(L, 1)) = CartVM::of(L).lib().audit(L);
+    return 0;
+}
+
+int describe_lib(lua_State* L) {
+    *static_cast<std::vector<ArchetypeInfo>*>(lua_tolightuserdata(L, 1)) = CartVM::of(L).lib().describe(L);
+    return 0;
+}
+
 }  // namespace
 
 CartVM::~CartVM() {
@@ -51,8 +61,9 @@ CartVM& CartVM::of(lua_State* L) {
     return *static_cast<CartVM*>(lua_callbacks(L)->userdata);
 }
 
-bool CartVM::open(CartSource source, uint64_t seed) {
+bool CartVM::open(CartSource source, uint64_t seed, std::vector<ImportSource> imports) {
     source_ = std::move(source);
+    imports_ = std::move(imports);
     source_.map.rehash();
     rng_ = Rng(seed);
     L_ = new_sandbox_state(heap_);
@@ -151,8 +162,45 @@ void CartVM::take_audio(TickAudio& out) {
 void CartVM::draw(Framebuffer& fb) {
     if (status_.outcome != Outcome::Running) return;
     painter_.begin(fb);
+    outlines_.clear();
     call("draw");
     painter_.end();
+    for (const Outline& o : outlines_) fb.rect(o.x, o.y, o.w, o.h, kMotherGold);  // brief section 4, step 5
+}
+
+void CartVM::outline(int x, int y, int w, int h) {
+    if (!painter_.drawing()) luaL_error(L_, "host.outline: only during cart.draw()");
+    outlines_.push_back({x - painter_.camera_x(), y - painter_.camera_y(), w, h});
+}
+
+bool CartVM::audit(WorldAudit& out) {
+    lua_pushcfunction(L_, audit_world, "audit");
+    lua_pushlightuserdata(L_, &out);
+    return protected_call(1);
+}
+
+std::vector<ArchetypeInfo> CartVM::describe() {
+    std::vector<ArchetypeInfo> out;
+    lua_pushcfunction(L_, describe_lib, "describe");
+    lua_pushlightuserdata(L_, &out);
+    if (!protected_call(1)) out.clear();
+    return out;
+}
+
+int CartVM::import_tiles(lua_State* L, int tile, int w, int h) {
+    if (!adding_) luaL_error(L, "host.import_tiles: no import is being added");
+    const int first = import_assets_.copy_tiles(*adding_, tile, w, h, source_.art.sheets);
+    if (first < 0) luaL_error(L, "import %s: its art doesn't fit in sheet 3", adding_->label().c_str());
+    return first;
+}
+
+int CartVM::import_sfx(lua_State* L, int n) {
+    if (!adding_) luaL_error(L, "host.import_sfx: no import is being added");
+    const int slot = import_assets_.copy_sfx(*adding_, n, source_.tracker);
+    if (slot < 0) {
+        luaL_error(L, "import %s: its cart has no sfx %d, or sfx slots 48-63 are full", adding_->label().c_str(), n);
+    }
+    return slot;
 }
 
 Painter& CartVM::painter_in_draw(lua_State* L, const char* fn) {
@@ -175,6 +223,15 @@ void CartVM::run_main(lua_State* L) {
 
 void CartVM::open_lib(lua_State* L) {
     lib_.open(L, api_ref_, source_.manifest);
+    for (const ImportSource& import : imports_) {
+        adding_ = &import;
+        const std::string why = lib_.add_import(L, import);
+        adding_ = nullptr;
+        if (!why.empty()) {
+            incompatible_ = why;
+            luaL_error(L, "can't import %s: %s", import.label().c_str(), why.c_str());
+        }
+    }
 }
 
 int CartVM::import_module(lua_State* L, const char* name) {

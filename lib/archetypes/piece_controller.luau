@@ -9,6 +9,7 @@
 -- gravity down for its pieces, and no avatar of the cart's (it reads the pad itself).
 local axes = use("core/axes")
 local S = use("core/state")
+local units = use("core/units")
 local entity = use("core/entity")
 local act = use("core/act")
 local damage = use("core/damage")
@@ -35,7 +36,13 @@ local function fall_ticks(p, lines)
     return math.max(p.min_fall, p.fall - p.speedup * (lines // p.every))
 end
 
+local function critical(x, y)
+    local t = mget(x, y, 0)
+    return t ~= 0 and fget(t, units.flag_critical)
+end
+
 -- Clears the well's full rows, bottom up, moving everything above down a row. Returns how many.
+-- Critical tiles are never moved or overwritten, so a row with one is never full.
 local function clear_lines(p)
     local cleared = 0
     local x0, x1, top = p.well_x, p.well_x + p.well_w - 1, p.well_y
@@ -43,13 +50,16 @@ local function clear_lines(p)
     while row >= top do
         local full = true
         for x = x0, x1 do
-            full = full and collision.solid_tile(x, row)
+            full = full and collision.solid_tile(x, row) and not critical(x, row)
         end
         if full then
             cleared += 1
             for r = row, top, -1 do
                 for x = x0, x1 do
-                    mset(x, r, if r > top then mget(x, r - 1, 0) else 0, 0)
+                    if not critical(x, r) then
+                        local above = if r > top and not critical(x, r - 1) then mget(x, r - 1, 0) else 0
+                        mset(x, r, above, 0)
+                    end
                 end
             end
         else
@@ -88,7 +98,7 @@ local function rotate(e, piece, turn)
     local rot = (pm.rot + turn) % 4
     for _, kick in { 0, -1, 1 } do
         if try(piece, rot, pm.col + kick, pm.row) then
-            act.sound(e.params.sfx_rotate)
+            act.sound(e, e.params.sfx_rotate)
             return
         end
     end
@@ -110,7 +120,7 @@ local function shift(e, piece)
         end
     end
     if try(piece, piece.mem.rot, piece.mem.col + dx, piece.mem.row) then
-        act.sound(e.params.sfx_move)
+        act.sound(e, e.params.sfx_move)
     end
 end
 
@@ -166,7 +176,7 @@ return {
             if m.piece ~= 0 then
                 local n = clear_lines(p)
                 m.lines += n
-                act.sound(if n > 0 then p.sfx_clear else p.sfx_drop)
+                act.sound(e, if n > 0 then p.sfx_clear else p.sfx_drop)
             end
             next_piece(e)
             return

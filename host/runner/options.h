@@ -11,8 +11,11 @@ extern const char* const kUsage;
 enum class InputKind { Live, Fuzz, Trace };  // Live: keyboard in a window, neutral headless
 
 struct Options {
-    std::string command;  // run | record | replay
-    std::string cart;     // run: empty for the built-in palette test pattern
+    std::string command;  // run | record | replay | import | matrix
+    std::string cart;     // run: empty for the built-in palette test pattern; matrix: the carts folder
+    std::vector<std::string> imports;  // import: 1-3 SOURCE:EXPORT
+    std::string out = "matrix.md";     // matrix: the table's file
+    int seeds = 3;                     // matrix: fuzz seeds per compatible cell
     std::string trace;    // record: the trace to write; replay: the trace to check
     bool headless = false;
     int64_t ticks = -1;   // stop after this many ticks; -1 = no limit

@@ -44,7 +44,7 @@ return {
 
     on_contact = function(e, other)
         if reflect.reflectable(other) and reflect.off(e, other) then
-            act.sound(e.params.sfx_reflect)
+            act.sound(e, e.params.sfx_reflect)
         end
     end,
 

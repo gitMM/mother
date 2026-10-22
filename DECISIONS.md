@@ -231,4 +231,56 @@ One line per decision: date, decision, reason.
   - oil is dropped 14 px behind the car.
 - 2026-10-22 · Bots are `tests/bots/*.luau` files read at run time · editable without rebuilding, and too long to keep as C++ strings.
 - 2026-10-22 · All stored traces were re-recorded from the same fuzz seeds (the hash gained the game start, boosts and racing progress), and each new cart has one; RALLY's stops at 3,600 ticks, as a fuzzed race runs to about 4,000 · same inputs and outcomes, new hashes; a smaller file.
-- 2026-10-22 · Imported falling pieces should decay after 1,200 ticks, and can't land as sheet-3 tiles (map cells take tiles 0–3071); both are left for the import harness (M8) · they only arise with imports.
+- 2026-10-22 · Imported falling pieces should decay after 1,200 ticks, and can't land as sheet-3 tiles (map cells take tiles 0–3071); both are left for the import harness (M8) · they only arise with imports. (Done in M8: see below.)
+
+## M8
+
+- 2026-10-22 · `mother import CART SOURCE:EXPORT [...]` takes up to 3 exports and the options of `run`. SOURCE is a cart folder next to CART, or a path. MOTHERLIB checks each export once the world exists, before main.luau runs, with the same check as native spawns. When CART refuses one, it prints e.g. `can't import jumper:walker: needs surface=ground, host has none` and exits 3 · the brief's message; a distinct exit code lets scripts tell refusals from errors.
+- 2026-10-22 · An import's art and sounds are copied once into the host cart, and its params are pointed at the copies:
+  - the sprite blocks its archetype declares (`w × frames` by `h` tiles) go into sheet 3, packed left to right in rows;
+  - its sfx go into sfx slots 48–63, and the instruments they use into instruments 48–63; a note that relied on the default instrument 0 gets the source's instrument 0;
+  - wavetables aren't copied (no cart uses them).
+
+  The brief puts imported art in sheet 3 and gives imported sounds voices 7–8, but an sfx must be in the host's tables to play; reserved slots mirror the reserved sheet.
+- 2026-10-22 · Imported entities' sounds take turns on voices 7 and 8 (`act.sound(e, n)` reads `e.imported`). The sequencer now plays sfx on all 8 voices; the cart API's `sfx` still takes voices 1–6 · brief section 3.
+- 2026-10-22 · How each import enters the world:
+  - equipment: held by the avatar from the start, on X (`button = "x"`, not loose, held for good);
+  - deployables: dropped on Y just behind the avatar, against its facing; a `dir` param (the shell's) points away from it; several deployables take turns;
+  - creatures: one at the cart's first spawn point at once, then one every 300 ticks, cycling through the spawn points;
+  - other objects (auto-objects): one at the start, at the top of the view over the avatar (the view's centre without one);
+  - bodies (avatars) are refused.
+
+  Creatures and auto-objects are faction `wild`; equipment and deployables are `player`'s. The brief names the modes, but not where or when.
+- 2026-10-22 · Caps: 3 exports per run, and 8 live instances spawned by the import system; the shots and drops of imported entities are imported too, but don't count · "8 imported instances" read as what the harness places.
+- 2026-10-22 · Imported solids decay. Solid imported entities are removed 1,200 ticks after they appear. An imported falling piece's cells decay 1,200 ticks after it lands: the piece stays, out of play, as a solid, and gives back what its cells held unless something broke them · brief section 6.
+- 2026-10-22 · Map cells and tile flags take tiles 0–4095 at run time, so sheet 3's tiles can be placed; `map.map` still holds 0–3071 and 3,072 flags. MOTHERLIB flags an imported piece's tile solid and damageable when it lands, and the tilemap hash covers all 4,096 flags · an imported falling_piece (✓ in JUMPER) must land as its own art.
+- 2026-10-22 · Mother Gold outlines: `world:draw()` queues a 1 px rectangle round each imported entity's collider, 1 px out, for entities in play and not in a holder's hand; the host draws them in colour 63 after `cart.draw()`, over everything and ignoring clip and palette · brief section 4, step 5. AAP-64's index 63 is dark brown, so the outlines are faint until the final palette arrives.
+- 2026-10-22 · Entities spawned by other entities (shots, drops) and imported deployables count as inside the bounds from the start, so the edges apply at once · the matrix test found shots fired by an avatar against a wall flying off for good, and oil dropped behind one falling forever.
+- 2026-10-22 · A ball with no avatar re-serves from its start point relative to the camera, and a diver re-enters once its centre leaves the view or the bounds, whichever comes first · found by the matrix test: under auto scroll the ball served from a point far behind the camera, and in BREAKOUT (176 px tall) divers died at the kill edge before they ever left the 180 px screen.
+- 2026-10-22 · Falling pieces stay inside the world rectangle (its sides and bottom), and line clears never move or overwrite critical tiles · found by the axis tests: in a world without a well, a piece moved off the map fell forever in a hard drop, and a floor of critical tiles was cleared as a full row.
+- 2026-10-22 · `mother matrix [CARTS] [--out FILE] [--seeds N] [--ticks N]`, defaults `carts`, `matrix.md`, 3 and 36,000:
+  - the carts are CARTS' subfolders with a cart.toml, in name order; their exports come in manifest order, under the carts' titles;
+  - a pair is compatible when MOTHERLIB accepts the import;
+  - each compatible pair runs headless for fuzz seeds 1–N (the same number seeds the cart's RNG) until the cart finishes or the ticks run out, then again: the "replay", which must give the same hash on every tick.
+
+  It fails a pair on:
+  - a Luau error (a NaN position is one);
+  - ticks over the CPU budget in both runs; one run alone is a warning, because the budget is wall time and a busy machine went over it once in testing;
+  - an entity wholly outside the bounds for more than 60 ticks in a row;
+  - a replay mismatch;
+  - no objective progress for 1,800 ticks while an imported solid is in the world.
+
+  Progress is a count that grows: with each objective entity (or spawn) fewer under kill_all and collect, each step under survive, each px nearer the exit under escape, and each racing-line point passed under race · the brief's checks, made measurable.
+- 2026-10-22 · The computed table equals the brief's expected one (`tests/matrix_expected.md`, with export ids for names: `rival_car` for "rival car"); neither a manifest nor the brief's table needed changing. CTest runs the matrix; Debug builds run 3,600 ticks per run instead of 36,000 · a full Debug matrix would take most of an hour; Release covers the brief's 10 minutes.
+- 2026-10-22 · Archetype axis tests (`tests/test_axes.cpp`) read every archetype's declarations from MOTHERLIB (a `describe` hook). For each archetype there is:
+  - a base world: the first value it accepts on each axis, from gravity none, surface ground, scroll none, avatar 8dir, spawn world, deploy true;
+  - one world per accepted value of each axis, and one per bounds type.
+
+  Equipment needs an avatar and deployables need deploy, so those values are left out. A body that is an avatar is the [avatar]; otherwise a dummy is, and the archetype is spawned (creatures as host, the rest as player). Three dummies, one per faction, bounce about with contact tier 1, and fuzz input drives the pad for 600 ticks. Checked every tick:
+  - no errors;
+  - nothing wholly outside the bounds for more than 60 ticks;
+  - its damage response to a hit (hp loses 1 and dies at 0, stun is stunned 60 ticks, none takes nothing);
+  - no hit within one faction unless the source hurts its owner or is a blast (bomb, mine).
+
+  28 archetypes, 508 worlds; a deliberately wrong expectation fails every stun and none archetype · "a generated test world for each [env] value it accepts".
+- 2026-10-22 · The state hash gained the import timers and an imported bit per entity; every stored trace was re-recorded from the same seeds, with the same outcomes.

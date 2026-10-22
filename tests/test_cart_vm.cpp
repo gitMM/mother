@@ -236,8 +236,8 @@ TEST(cartvm_sprite_map_and_text_api) {
         ok = ok and mget(1, 0) == 1
         local r = ramp(2)
         ok = ok and #r == 3 and r[1] == 1 and r[3] == 3 and #ramp(7) == 0
-        ok = ok and not pcall(mset, 0, 0, 3072) and not pcall(fget, 1, 8) and not pcall(ramp, 8)
-            and not pcall(mget, 0, 0, 2) and not pcall(fget, 3072)
+        ok = ok and not pcall(mset, 0, 0, 4096) and not pcall(fget, 1, 8) and not pcall(ramp, 8)
+            and not pcall(mget, 0, 0, 2) and not pcall(fget, 4096)
         )" + lifecycle("", "if not ok then error(\"checks failed\") end", R"(
             cls(0)
             map(0, 0, 0, 0, 2, 1)

@@ -21,7 +21,7 @@ local function detonate(e)
     e.ghost = true
     e.stun = 0 -- out of play: no status holds the blast back
     melee.blast(e, p.radius, p.tier)
-    act.sound(p.sfx_blast)
+    act.sound(e, p.sfx_blast)
 end
 
 return {

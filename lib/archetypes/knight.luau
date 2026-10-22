@@ -65,7 +65,7 @@ return {
         if m.cool == 0 and btnp("b") then
             m.dodge, m.cool = p.dodge_ticks, p.dodge_cooldown
             e.hurt = math.max(e.hurt, p.dodge_ticks)
-            act.sound(p.sfx_dodge)
+            act.sound(e, p.sfx_dodge)
         end
     end,
 

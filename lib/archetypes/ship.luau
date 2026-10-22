@@ -80,7 +80,7 @@ return {
                 sprite = p.shot_sprite,
             }, e.x, e.y - e.hh - 3, e.faction)
             table.insert(m.shots, shot)
-            act.sound(p.sfx_fire)
+            act.sound(e, p.sfx_fire)
         end
     end,
 

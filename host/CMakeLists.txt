@@ -29,6 +29,7 @@ add_library(mother_host STATIC
     runner/clock.cpp
     runner/commands.cpp
     runner/headless.cpp
+    runner/matrix.cpp
     runner/options.cpp
     runner/test_pattern.cpp
     runner/trace.cpp
@@ -45,6 +46,7 @@ add_library(mother_host STATIC
     vm/api_sprite.cpp
     vm/cart_source.cpp
     vm/cart_vm.cpp
+    vm/imports.cpp
     vm/motherlib.cpp
     vm/sandbox.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/lib_sources.cpp

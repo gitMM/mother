@@ -19,7 +19,7 @@ public:
     explicit Sequencer(TrackerData& data) : data_(&data) {}
 
     // Cart API; the bindings validate arguments.
-    void sfx(int n, int voice);             // voice 0-5, or -1 to pick one
+    void sfx(int n, int voice);             // voice 0-7 (6 and 7 for imports), or -1 to pick 0-5
     void music(int song, int fade_ticks);   // song -1 stops, fading out over fade_ticks
     void stop(int voice);                   // voice 0-5, or -1 for all music and sfx
     // The current music position: bars and beats since the song started (16 rows a bar, 4 a
@@ -61,7 +61,7 @@ private:
     int fade_from_ = 0, fade_to_ = 0, fade_len_ = 0, fade_t_ = 0;
     bool stop_after_fade_ = false;
 
-    std::array<SfxPlay, kCartVoices> sfx_{};
+    std::array<SfxPlay, kVoices> sfx_{};
     uint64_t sfx_started_ = 0;
 };
 

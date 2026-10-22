@@ -4,8 +4,14 @@
 -- shape, which the cart flags solid and damageable), and the piece is gone. It moves itself along
 -- the grid, so it is static: statuses never push it off the grid, and stun or knockback pause it.
 -- A piece_controller steers it; on its own it just falls. Needs gravity down.
+-- An imported piece's tiles are its art in sheet 3 (MOTHERLIB flags them solid and damageable),
+-- and they decay: the piece stays, out of play, as an imported solid, and when it decays
+-- (core/imports.luau) it puts back what its cells held before, unless something broke them.
 local axes = use("core/axes")
+local S = use("core/state")
+local units = use("core/units")
 local entity = use("core/entity")
+local spawn = use("core/spawn")
 local tetromino = use("core/tetromino")
 
 local T = 8
@@ -14,13 +20,24 @@ local T = 8
 local function land(e)
     local m = e.mem
     local tile = if e.params.tiles == 0 then 0 else e.params.tiles + m.shape - 1
+    if e.imported and tile >= 3072 then
+        fset(tile, units.flag_solid, true)
+        fset(tile, units.flag_damageable, true)
+    end
+    m.cells = {}
     for _, c in tetromino.form(m.shape, m.rot).cells do
         local tx, ty = m.col + c[1], m.row + c[2]
         if tetromino.free(tx, ty) then
+            table.insert(m.cells, { tx, ty, mget(tx, ty, 0) })
             mset(tx, ty, tile, 0)
         end
     end
-    entity.remove(e, "remove")
+    if e.imported then
+        m.landed, m.tile = true, tile
+        e.ghost, e.solid, e.decay = true, true, S.tick + spawn.DECAY
+    else
+        entity.remove(e, "remove")
+    end
 end
 
 return {
@@ -64,6 +81,9 @@ return {
 
     update = function(e)
         local m, p = e.mem, e.params
+        if m.landed then
+            return
+        end
         m.timer += 1
         if m.drop then
             land(e)
@@ -81,8 +101,22 @@ return {
         end
     end,
 
+    on_leave = function(e)
+        local m = e.mem
+        if m.landed then
+            for _, c in m.cells do
+                if mget(c[1], c[2], 0) == m.tile then
+                    mset(c[1], c[2], c[3], 0)
+                end
+            end
+        end
+    end,
+
     draw = function(e)
         local m = e.mem
+        if m.landed then
+            return
+        end
         local tile = if e.params.tiles == 0 then 0 else e.params.tiles + m.shape - 1
         tetromino.draw(m.shape, m.rot, m.col * T, m.row * T, tile, 12)
     end,

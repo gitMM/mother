@@ -5,7 +5,7 @@ set(MOTHER_TEST_MODULES
     trk_format synth sequencer
     rng fixed_math fuzz trace
     toml manifest world collision damage spawn bounds objective
-    knightfall breakout blockfall starfighter jumper rally carts
+    knightfall breakout blockfall starfighter jumper rally carts import axes
 )
 
 set(test_sources test_main.cpp)
@@ -122,3 +122,26 @@ add_test(NAME cli.record_then_replay
          COMMAND ${CMAKE_COMMAND} -DMOTHER=$<TARGET_FILE:mother> -DCART=${carts}/dice
                  -DTRACE=${CMAKE_CURRENT_BINARY_DIR}/dice_fresh.trace
                  -P ${CMAKE_CURRENT_SOURCE_DIR}/record_replay.cmake)
+
+# M8 acceptance (with unit.import and unit.axes): mother import runs a cart with another's export,
+# and refuses an incompatible one saying which axis failed; mother matrix computes the brief's
+# expected table and every compatible pair passes 3 fuzz seeds of 10 minutes (Debug builds run
+# 1 minute each: a Debug matrix would take most of an hour).
+add_test(NAME cli.import_runs
+         COMMAND mother import ${games}/knightfall breakout:ball --headless --ticks 600 --input fuzz:1 --seed 1)
+set_tests_properties(cli.import_runs PROPERTIES PASS_REGULAR_EXPRESSION "result=(win|lose|timeout) ticks=[0-9]+ seed=1 budget=0")
+
+add_test(NAME cli.import_refused COMMAND mother import ${games}/breakout jumper:walker --headless --ticks 60)
+set_tests_properties(cli.import_refused PROPERTIES
+                     PASS_REGULAR_EXPRESSION "can't import jumper:walker: needs surface=ground, host has none")
+
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(matrix_ticks 3600)
+else()
+    set(matrix_ticks 36000)
+endif()
+add_test(NAME cli.matrix
+         COMMAND ${CMAKE_COMMAND} -DMOTHER=$<TARGET_FILE:mother> -DCARTS=${games} -DTICKS=${matrix_ticks}
+                 -DOUT=${CMAKE_CURRENT_BINARY_DIR}/matrix.md -DEXPECTED=${CMAKE_CURRENT_SOURCE_DIR}/matrix_expected.md
+                 -P ${CMAKE_CURRENT_SOURCE_DIR}/matrix_check.cmake)
+set_tests_properties(cli.matrix PROPERTIES TIMEOUT 1500)

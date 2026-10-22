@@ -39,7 +39,7 @@ void TileMap::rehash() {
             for (int x = 0; x < l.w; ++x) hash ^= cell_key(n, x, y, l.cells[size_t(y) * size_t(l.w) + size_t(x)]);
         }
     }
-    for (int t = 0; t < kCartTiles; ++t) hash ^= flag_key(t, flags[size_t(t)]);
+    for (int t = 0; t < kSpriteCount; ++t) hash ^= flag_key(t, flags[size_t(t)]);
 }
 
 }  // namespace mother

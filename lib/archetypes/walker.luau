@@ -56,7 +56,7 @@ return {
 
     on_leave = function(e, reason)
         if reason == "death" then
-            act.sound(e.params.sfx_die)
+            act.sound(e, e.params.sfx_die)
         end
     end,
 

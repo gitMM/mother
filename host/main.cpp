@@ -15,5 +15,6 @@ int main(int argc, char** argv) {
     const mother::Options& opts = parsed.opts;
     if (opts.command == "record") return mother::record_command(opts);
     if (opts.command == "replay") return mother::replay_command(opts);
+    if (opts.command == "matrix") return mother::matrix_command(opts);
     return mother::run_command(opts);
 }

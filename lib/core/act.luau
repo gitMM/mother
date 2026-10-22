@@ -139,14 +139,21 @@ function act.dir8()
     return x, y
 end
 
--- Plays sfx n, -1 meaning the archetype has no sound for this. Archetype sounds take turns on
--- voices 5 and 6, so a cart's music on channels 1-4 plays on undisturbed.
-local voice = 5
+-- Plays e's sfx n, -1 meaning the archetype has no sound for this. Native sounds take turns on
+-- voices 5 and 6, so a cart's music on channels 1-4 plays on undisturbed; imported entities'
+-- sounds take turns on voices 7 and 8, reserved for imports.
+local native_voice, import_voice = 5, 7
 
-function act.sound(n)
-    if n >= 0 then
-        sfx(n, voice)
-        voice = if voice == 5 then 6 else 5
+function act.sound(e, n)
+    if n < 0 then
+        return
+    end
+    if e.imported then
+        host.sfx(n, import_voice)
+        import_voice = if import_voice == 7 then 8 else 7
+    else
+        host.sfx(n, native_voice)
+        native_voice = if native_voice == 5 then 6 else 5
     end
 end
 

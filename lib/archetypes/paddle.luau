@@ -71,7 +71,7 @@ return {
         if not equip.held(e) then
             equip.take(e, other)
         elseif other ~= e.mem.holder and reflect.reflectable(other) and reflect.off(e, other) then
-            act.sound(e.params.sfx_reflect)
+            act.sound(e, e.params.sfx_reflect)
         end
     end,
 

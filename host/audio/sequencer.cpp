@@ -141,7 +141,7 @@ void Sequencer::music_tick(TickAudio& out) {
 }
 
 void Sequencer::sfx_tick(TickAudio& out) {
-    for (int v = 0; v < kCartVoices; ++v) {
+    for (int v = 0; v < kVoices; ++v) {
         SfxPlay& play = sfx_[size_t(v)];
         if (play.n < 0) continue;
         const Sfx& s = data_->sfx[size_t(play.n)];

@@ -37,7 +37,7 @@ return {
         if reason ~= "death" then
             return
         end
-        act.sound(e.params.sfx_break)
+        act.sound(e, e.params.sfx_break)
         if e.params.drop ~= "" then
             spawn.child(e, e.params.drop, e.params.drop_params, e.x, e.y, "player")
         end

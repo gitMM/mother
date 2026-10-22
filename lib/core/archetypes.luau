@@ -214,4 +214,42 @@ function archetypes.params(name, def, given, level)
     return table.freeze(p)
 end
 
+-- Every archetype's declarations as plain data, sorted by name, for the host (the import harness
+-- and the archetype axis tests): { name, category, layer, deployable, solid, hurts_owner, damage,
+-- tier, requires = { axis = { values } } }, an empty list meaning axes.ANY and deploy values
+-- written "true" and "false".
+function archetypes.describe()
+    local names = {}
+    for name in defs do
+        table.insert(names, name)
+    end
+    table.sort(names)
+    local out = {}
+    for _, name in names do
+        local d = defs[name]
+        local requires = {}
+        for _, axis in axes.NAMES do
+            local values = {}
+            if d.requires[axis] ~= axes.ANY then
+                for _, v in d.requires[axis] do
+                    table.insert(values, tostring(v))
+                end
+            end
+            requires[axis] = values
+        end
+        table.insert(out, {
+            name = name,
+            category = d.category,
+            layer = d.layer,
+            deployable = d.deployable == true,
+            solid = d.solid == true,
+            hurts_owner = d.hurts_owner == true,
+            damage = d.damage,
+            tier = d.tier,
+            requires = requires,
+        })
+    end
+    return out
+end
+
 return table.freeze(archetypes)

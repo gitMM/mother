@@ -10,12 +10,20 @@ local bounds = use("core/bounds")
 
 local spawn = {}
 
--- Creates an entity; the caller has checked every argument.
-function spawn.entity(name, params, x, y, faction)
+-- Imported solids decay this many steps after they appear (brief section 6).
+spawn.DECAY = 1200
+
+-- Creates an entity; the caller has checked every argument. `imported`: it came from another
+-- cart (core/imports.luau), or from something that did.
+function spawn.entity(name, params, x, y, faction, imported)
     local def = archetypes.get(name)
     local id = S.next_id
     S.next_id += 1
     local e = entity.new(id, name, def, params, x, y, faction, S.tick)
+    e.imported = imported == true
+    if e.imported and def.solid then
+        e.decay = S.tick + spawn.DECAY
+    end
     if def.init ~= nil then
         def.init(e)
     end
@@ -29,7 +37,9 @@ function spawn.entity(name, params, x, y, faction)
 end
 
 -- An entity spawned by another (a shot, a dropped pickup, a re-served ball). It must suit the
--- cart's [env] like any spawn, and it is imported when its parent is.
+-- cart's [env] like any spawn, and it is imported when its parent is. The bounds' edges apply to
+-- it from the start: it appears where its parent is, so even when that is just past an edge (a
+-- shot from an avatar against a wall) it belongs inside.
 function spawn.child(parent, name, params, x, y, faction)
     local def = archetypes.get(name)
     if def == nil then
@@ -39,8 +49,8 @@ function spawn.child(parent, name, params, x, y, faction)
     if why ~= nil then
         error(`{parent.name} spawns {name}, which {why}`, 0)
     end
-    local e = spawn.entity(name, archetypes.params(name, def, params, 0), x, y, faction)
-    e.imported = parent.imported
+    local e = spawn.entity(name, archetypes.params(name, def, params, 0), x, y, faction, parent.imported)
+    e.entered = true
     return e
 end
 

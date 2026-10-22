@@ -68,12 +68,12 @@ return {
                 sprite = p.shot_sprite,
             }, h.x + fx * front + tx * s, h.y + fy * front + ty * s, e.faction)
         end
-        act.sound(p.sfx_fire)
+        act.sound(e, p.sfx_fire)
     end,
 
     on_contact = function(e, other)
         if equip.take(e, other) then
-            act.sound(e.params.sfx_take)
+            act.sound(e, e.params.sfx_take)
         end
     end,
 

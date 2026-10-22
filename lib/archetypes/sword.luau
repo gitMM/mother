@@ -57,7 +57,7 @@ return {
             m.cool, m.show = p.cooldown, SHOW
             m.fx, m.fy = h.fx, h.fy
             melee.swing(h, h.fx, h.fy, p.reach, p.arc, p.tier)
-            act.sound(p.sfx_swing)
+            act.sound(e, p.sfx_swing)
         end
     end,
 

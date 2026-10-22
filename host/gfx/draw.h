@@ -24,6 +24,8 @@ public:
     void set_assets(const SpriteSheets* sheets, const TileMap* map) { sheets_ = sheets, map_ = map; }
 
     void camera(int x, int y);
+    int camera_x() const { return cam_x_; }
+    int camera_y() const { return cam_y_; }
     void clip(int x, int y, int w, int h);
     void clip_reset();
     void pal(uint8_t src, uint8_t dst);

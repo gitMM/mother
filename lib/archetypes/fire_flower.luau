@@ -84,7 +84,7 @@ return {
             sprite = p.fireball_sprite,
         }, h.x + fx * front, h.y + fy * front, e.faction)
         table.insert(mem.balls, ball)
-        act.sound(p.sfx_fire)
+        act.sound(e, p.sfx_fire)
     end,
 
     on_contact = function(e, other)
@@ -93,7 +93,7 @@ return {
             if other.damage == "hp" then
                 other.hp = math.max(other.hp, e.params.hp)
             end
-            act.sound(e.params.sfx_take)
+            act.sound(e, e.params.sfx_take)
         end
     end,
 

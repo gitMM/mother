@@ -4,6 +4,7 @@
 -- pass of point 1, after all the others, is a lap. Laps feed the race objective.
 local S = use("core/state")
 local entity = use("core/entity")
+local objective = use("core/objective")
 
 local race = {}
 
@@ -46,6 +47,9 @@ function race.step()
                     e.started = true
                 end
                 e.wp = e.wp % #line + 1
+                if objective.counts(e) then
+                    S.progress += 1
+                end
             end
         end
     end

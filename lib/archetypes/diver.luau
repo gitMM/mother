@@ -1,8 +1,8 @@
 -- DIVER (creature, STARFIGHTER): flies in from its spawn point on a swooping curve (sideways out
 -- towards the middle of the screen and back) for `swoop` ticks, then dives straight at the
 -- nearest damageable entity of another faction at fast speed, firing 1 bullet at it. Once it has
--- left the screen, or met a solid edge, it comes back in where it first appeared and swoops
--- again. Air layer: tiles never stop it. HP 1, contact tier 1. All its moves are relative to the
+-- left the screen or the bounds (its centre past either), or met a solid edge, it comes back in
+-- where it first appeared and swoops again. Air layer: tiles never stop it. HP 1, contact tier 1. All its moves are relative to the
 -- camera, so it keeps formation under auto scroll. Needs spawn points.
 local axes = use("core/axes")
 local units = use("core/units")
@@ -10,11 +10,16 @@ local S = use("core/state")
 local act = use("core/act")
 local look = use("core/look")
 local spawn = use("core/spawn")
+local bounds = use("core/bounds")
 
 local W, H = units.screen_w, units.screen_h
 
+-- Its centre is on the screen and inside the bounds.
 local function on_screen(e)
-    return e.x >= S.cam_x and e.x <= S.cam_x + W and e.y >= S.cam_y and e.y <= S.cam_y + H
+    local x0, y0, x1, y1 = bounds.rect()
+    x0, y0 = math.max(x0, S.cam_x), math.max(y0, S.cam_y)
+    x1, y1 = math.min(x1, S.cam_x + W), math.min(y1, S.cam_y + H)
+    return e.x >= x0 and e.x <= x1 and e.y >= y0 and e.y <= y1
 end
 
 -- Back to where it first appeared (relative to the camera), outside the edges' reach until it is
@@ -48,7 +53,7 @@ local function dive(e)
             sprite = p.shot_sprite,
         }, e.x + dx * (e.hh + 3), e.y + dy * (e.hh + 3), e.faction)
     end
-    act.sound(p.sfx_dive)
+    act.sound(e, p.sfx_dive)
 end
 
 return {
@@ -115,7 +120,7 @@ return {
 
     on_leave = function(e, reason)
         if reason == "death" then
-            act.sound(e.params.sfx_die)
+            act.sound(e, e.params.sfx_die)
         end
     end,
 

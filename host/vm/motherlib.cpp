@@ -6,6 +6,7 @@
 #include "runtime/hash.h"
 #include "vm/api.h"
 #include "vm/cart_vm.h"
+#include "vm/imports.h"
 #include "vm/lib_sources.h"
 #include "vm/sandbox.h"
 
@@ -49,12 +50,49 @@ int l_in_draw(lua_State* L) {
     return 1;
 }
 
+// host.sfx(n, voice): sfx n on voice 1-8; MOTHERLIB plays imported sounds on 7 and 8.
+int l_sfx(lua_State* L) {
+    not_in_draw(L, "host.sfx");
+    CartVM& vm = CartVM::of(L);
+    const int n = int(luaL_checkinteger(L, 1)), voice = int(luaL_checkinteger(L, 2));
+    if (n < 0 || n >= kSfxCount || vm.tracker().sfx[size_t(n)].speed == 0) luaL_error(L, "host.sfx: no sfx %d", n);
+    if (voice < 1 || voice > kVoices) luaL_error(L, "host.sfx: voice must be 1-8, got %d", voice);
+    vm.sequencer().sfx(n, voice - 1);
+    return 0;
+}
+
+// host.import_tiles(tile, w, h) -> the first tile of its copy in sheet 3, while an import is
+// being added.
+int l_import_tiles(lua_State* L) {
+    const int tile = int(luaL_checkinteger(L, 1)), w = int(luaL_checkinteger(L, 2));
+    const int h = int(luaL_checkinteger(L, 3));
+    lua_pushinteger(L, CartVM::of(L).import_tiles(L, tile, w, h));
+    return 1;
+}
+
+// host.import_sfx(n) -> the slot of its copy, while an import is being added.
+int l_import_sfx(lua_State* L) {
+    lua_pushinteger(L, CartVM::of(L).import_sfx(L, int(luaL_checkinteger(L, 1))));
+    return 1;
+}
+
+// host.outline(x, y, w, h): queues a Mother Gold outline (camera applied) during cart.draw().
+int l_outline(lua_State* L) {
+    const int x = arg_coord(L, 1), y = arg_coord(L, 2), w = arg_coord(L, 3), h = arg_coord(L, 4);
+    CartVM::of(L).outline(x, y, w, h);
+    return 0;
+}
+
 constexpr luaL_Reg kHost[] = {
     {"modules", l_modules},
     {"map_size", l_map_size},
     {"in_draw", l_in_draw},
     {"btn", lib_btn},
     {"btnp", lib_btnp},
+    {"sfx", l_sfx},
+    {"import_tiles", l_import_tiles},
+    {"import_sfx", l_import_sfx},
+    {"outline", l_outline},
 };
 
 // TOML values as Luau values: integers and floats become numbers, arrays 1-based tables.
@@ -116,6 +154,9 @@ void Motherlib::open(lua_State* L, int api_ref, const TomlValue& manifest) {
     const int hooks = lua_gettop(L);
     step_ref_ = take_ref(L, hooks, "step");
     hash_ref_ = take_ref(L, hooks, "hash");
+    import_ref_ = take_ref(L, hooks, "import");
+    audit_ref_ = take_ref(L, hooks, "audit");
+    describe_ref_ = take_ref(L, hooks, "describe");
     lua_getfield(L, hooks, "world");
     lua_setglobal(L, "world");
     lua_getfield(L, hooks, "create");
@@ -135,6 +176,91 @@ uint64_t Motherlib::take_hash(lua_State* L) {
     }
     lua_pop(L, 2);
     return h.value();
+}
+
+std::string Motherlib::add_import(lua_State* L, const ImportSource& source) {
+    lua_getref(L, import_ref_);
+    lua_createtable(L, 0, 4);
+    lua_pushstring(L, source.archetype.c_str());
+    lua_setfield(L, -2, "archetype");
+    push_toml(L, source.params);
+    lua_setfield(L, -2, "params");
+    lua_pushstring(L, source.cart.c_str());
+    lua_setfield(L, -2, "source");
+    lua_pushstring(L, source.export_id.c_str());
+    lua_setfield(L, -2, "export");
+    lua_call(L, 1, 1);
+    std::string why = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
+    lua_pop(L, 1);
+    return why;
+}
+
+WorldAudit Motherlib::audit(lua_State* L) {
+    lua_getref(L, audit_ref_);
+    lua_call(L, 0, 4);
+    WorldAudit out;
+    out.out_most = int(lua_tointeger(L, -4));
+    out.solids = lua_toboolean(L, -3) != 0;
+    out.progress = lua_tonumber(L, -2);
+    out.out_who = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
+    lua_pop(L, 4);
+    return out;
+}
+
+namespace {
+
+std::string field_string(lua_State* L, const char* key) {
+    lua_getfield(L, -1, key);
+    std::string s = lua_isstring(L, -1) ? lua_tostring(L, -1) : "";
+    lua_pop(L, 1);
+    return s;
+}
+
+bool field_bool(lua_State* L, const char* key) {
+    lua_getfield(L, -1, key);
+    const bool b = lua_toboolean(L, -1) != 0;
+    lua_pop(L, 1);
+    return b;
+}
+
+constexpr const char* kAxes[] = {"gravity", "surface", "scroll", "avatar", "spawn", "deploy"};
+
+}  // namespace
+
+std::vector<ArchetypeInfo> Motherlib::describe(lua_State* L) {
+    lua_getref(L, describe_ref_);
+    lua_call(L, 0, 1);
+    std::vector<ArchetypeInfo> out;
+    const int n = lua_objlen(L, -1);
+    for (int i = 1; i <= n; ++i) {
+        lua_rawgeti(L, -1, i);
+        ArchetypeInfo a;
+        a.name = field_string(L, "name");
+        a.category = field_string(L, "category");
+        a.layer = field_string(L, "layer");
+        a.damage = field_string(L, "damage");
+        a.deployable = field_bool(L, "deployable");
+        a.solid = field_bool(L, "solid");
+        a.hurts_owner = field_bool(L, "hurts_owner");
+        lua_getfield(L, -1, "tier");
+        a.tier = int(lua_tointeger(L, -1));
+        lua_pop(L, 1);
+        lua_getfield(L, -1, "requires");
+        for (const char* axis : kAxes) {
+            lua_getfield(L, -1, axis);
+            std::vector<std::string>& values = a.accepts[axis];
+            for (int k = 1; k <= lua_objlen(L, -1); ++k) {
+                lua_rawgeti(L, -1, k);
+                values.push_back(lua_tostring(L, -1));
+                lua_pop(L, 1);
+            }
+            lua_pop(L, 1);
+        }
+        lua_pop(L, 2);  // requires, the record
+        out.push_back(std::move(a));
+    }
+    lua_pop(L, 1);
+    return out;
 }
 
 int Motherlib::use(lua_State* L, const std::string& name) {

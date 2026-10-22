@@ -1,6 +1,7 @@
 -- Tetrominoes (brief section 8, BLOCKFALL) for falling_piece and piece_controller: the 7 shapes
 -- 1-7 = I O T S Z J L, each with 4 clockwise rotations, as cells in a box of tiles. A piece is
 -- placed by the box's top-left cell (col, row) on the map; its cells are map tiles of layer 0.
+local S = use("core/state")
 local units = use("core/units")
 local collision = use("core/collision")
 
@@ -59,9 +60,10 @@ function tetromino.spawn_col(shape, left, w)
     return left + (w - BASE[shape].n) // 2
 end
 
--- A cell a piece can move into: not solid, and not critical (MOTHERLIB never overwrites those).
+-- A cell a piece can move into: inside the world rectangle's sides and above its bottom (above
+-- it is open), not solid, and not critical (MOTHERLIB never overwrites those).
 function tetromino.free(tx, ty)
-    if collision.solid_tile(tx, ty) then
+    if tx < 0 or tx >= S.world_w // T or ty >= S.world_h // T or collision.solid_tile(tx, ty) then
         return false
     end
     local t = mget(tx, ty, 0)

@@ -9,6 +9,7 @@
 #include <iterator>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "audio/wav.h"
 #include "runner/headless.h"
@@ -22,16 +23,31 @@ namespace {
 
 namespace fs = std::filesystem;
 
-std::unique_ptr<CartVM> load_cart(const std::string& dir, uint64_t seed) {
+// Loads and opens a cart with its imports. `refused` is set when the cart can't take an import.
+std::unique_ptr<CartVM> load_cart(const std::string& dir, uint64_t seed, const std::vector<std::string>& specs = {},
+                                  bool* refused = nullptr) {
     CartSource source;
     std::string error;
     if (!load_cart_source(dir, source, error)) {
         std::fprintf(stderr, "mother: %s\n", error.c_str());
         return nullptr;
     }
+    std::vector<ImportSource> imports(specs.size());
+    for (size_t i = 0; i < specs.size(); ++i) {
+        if (!load_import(dir, specs[i], imports[i], error)) {
+            std::fprintf(stderr, "mother: %s\n", error.c_str());
+            return nullptr;
+        }
+    }
     auto cart = std::make_unique<CartVM>();
-    if (!cart->open(std::move(source), seed)) {
-        std::fprintf(stderr, "mother: cart error: %s\n", cart->status().message.c_str());
+    if (!cart->open(std::move(source), seed, std::move(imports))) {
+        if (!cart->incompatible().empty()) {
+            if (refused) *refused = true;
+            const std::string& msg = cart->status().message;
+            std::fprintf(stderr, "mother: %s\n", msg.substr(0, msg.find('\n')).c_str());
+        } else {
+            std::fprintf(stderr, "mother: cart error: %s\n", cart->status().message.c_str());
+        }
         return nullptr;
     }
     return cart;
@@ -117,10 +133,11 @@ int run_command(const Options& opts) {
     }
 
     std::unique_ptr<Program> prog;
+    bool refused = false;
     if (opts.cart.empty()) {
         prog = std::make_unique<TestPattern>();
-    } else if (!(prog = load_cart(opts.cart, seed))) {
-        return 1;
+    } else if (!(prog = load_cart(opts.cart, seed, opts.imports, &refused))) {
+        return refused ? 3 : 1;
     }
     bool io_ok = true;
     const RunResult r = execute(*prog, opts, ticks, input.get(), nullptr, io_ok);

@@ -30,7 +30,18 @@ mother record tests/carts/dice out.trace --headless --ticks 1800 --input fuzz:1
 mother replay tests/carts/dice out.trace --hash    # re-runs it; fails on any state-hash mismatch
 mother run tests/carts/dice --input trace:out.trace   # watch a trace
 mother run                                         # palette test pattern
+mother import carts/knightfall breakout:ball       # a cart with up to 3 exports of other carts
+mother matrix                                      # every export against every cart; writes matrix.md
 ```
+
+**Imports.** `mother import` runs a cart with exports of others (`SOURCE:EXPORT`, SOURCE a cart
+folder next to it). It refuses one the cart's `[env]` can't host, saying which axis failed, and
+exits 3. Imported art goes into sheet 3, and imported sounds play on voices 7–8. Equipment is used
+with X, and deployables are dropped with Y. Creatures come in at the cart's spawn points, and other
+objects appear at the start. Imported things get a Mother Gold outline. `mother matrix` tries every
+export in every other cart: it writes the compatibility table ([matrix.md](matrix.md)) and runs
+each compatible pair for 3 fuzz seeds of 10 minutes under checks (errors, CPU budget, bounds,
+replay, objective progress).
 
 Each run ends with one line: `result=… ticks=… seed=… budget=… hash=…`, plus `audio=…` headless
 and `replay=ok` or `replay=mismatch …` for replays. `tests/traces/` holds one trace per cart; CI

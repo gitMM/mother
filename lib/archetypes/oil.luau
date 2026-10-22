@@ -50,7 +50,7 @@ return {
     on_contact = function(e, other)
         if other.layer == "ground" then
             if other.slip == 0 then
-                act.sound(e.params.sfx_slip)
+                act.sound(e, e.params.sfx_slip)
             end
             status.apply(other, "slip", e.params.ticks)
         end

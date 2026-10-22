@@ -1,8 +1,11 @@
 -- The MOTHERLIB world (brief section 6): the public `world` table, its creation from cart.toml
 -- and world:step(). The host runs this module; it returns the hooks the host calls:
 --   create(manifest)   once, before main.luau runs
+--   import(spec)       after create, once per imported export (core/imports.luau)
 --   step()             every tick, after cart.update()
 --   hash()             every tick after step: the buffer and byte count to hash
+--   audit()            the matrix test's checks after a step (core/imports.luau)
+--   describe()         every archetype's declarations (core/archetypes.luau), for the host
 local S = use("core/state")
 local check = use("core/check")
 local archetypes = use("core/archetypes")
@@ -16,6 +19,7 @@ local bounds = use("core/bounds")
 local spawn = use("core/spawn")
 local objective = use("core/objective")
 local race = use("core/race")
+local imports = use("core/imports")
 local hash = use("core/hash")
 
 local live = entity.live
@@ -159,7 +163,8 @@ end
 
 local DRAW_ORDER = { "ground", "object", "projectile", "air" }
 
--- Draws every entity with a draw hook, layer by layer (air on top), in id order.
+-- Draws every entity with a draw hook, layer by layer (air on top), in id order; imported ones
+-- also get their outline queued for the host.
 function world.draw(self)
     method(self, "draw", false)
     if not host.in_draw() then
@@ -172,6 +177,7 @@ function world.draw(self)
             local e = list[i]
             if live(e) and e.layer == layer and e.arch.draw ~= nil then
                 e.arch.draw(e)
+                imports.outline(e)
             end
         end
     end
@@ -296,6 +302,7 @@ local function step()
     collision.contacts(n)
     race.step()
     spawn.run()
+    imports.step()
     objective.check()
     events.flush()
     purge()
@@ -304,6 +311,9 @@ end
 return table.freeze({
     world = world,
     create = create,
+    import = imports.add,
     step = step,
     hash = hash.write,
+    audit = imports.audit,
+    describe = archetypes.describe,
 })

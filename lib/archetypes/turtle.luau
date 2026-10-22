@@ -45,7 +45,7 @@ return {
         if reason ~= "death" then
             return
         end
-        act.sound(e.params.sfx_die)
+        act.sound(e, e.params.sfx_die)
         if e.src_y ~= nil and e.src_y < e.y - e.hh then
             local dir = if e.src_x > e.x then -1 elseif e.src_x < e.x then 1 else -e.fx
             spawn.child(e, "shell", { dir = dir, sprite = e.params.shell_sprite, sfx_bump = e.params.sfx_kick },

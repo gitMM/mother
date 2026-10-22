@@ -57,7 +57,7 @@ return {
             m.windup -= 1
             if m.windup == 0 then
                 melee.swing(e, e.fx, e.fy, p.reach, 90, p.tier)
-                act.sound(p.sfx_swing)
+                act.sound(e, p.sfx_swing)
                 m.cool, m.show = p.cooldown, 10
             end
             return
@@ -84,7 +84,7 @@ return {
 
     on_leave = function(e, reason)
         if reason == "death" then
-            act.sound(e.params.sfx_die)
+            act.sound(e, e.params.sfx_die)
         end
     end,
 

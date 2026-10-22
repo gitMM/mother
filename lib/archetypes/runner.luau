@@ -27,7 +27,7 @@ local function head_bump(e)
         local tx = math.floor(x / T)
         if collision.solid_tile(tx, ty) then
             damage.tile(tx, ty)
-            act.sound(e.params.sfx_bump)
+            act.sound(e, e.params.sfx_bump)
             return
         end
     end
@@ -88,7 +88,7 @@ return {
             if btnp("a") then
                 e.vy = -p.jump
                 mem.jumping = true
-                act.sound(p.sfx_jump)
+                act.sound(e, p.sfx_jump)
             end
         end
         if mem.jumping and not btn("a") and e.vy < -p.cut then
@@ -120,7 +120,7 @@ return {
         end
         e.vy = -(if btn("a") then e.params.jump else e.params.bounce)
         e.mem.jumping = false
-        act.sound(e.params.sfx_stomp)
+        act.sound(e, e.params.sfx_stomp)
     end,
 
     draw = function(e)
